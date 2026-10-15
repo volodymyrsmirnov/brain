@@ -1,38 +1,54 @@
 # MRI Head Explorer
 
-**An interactive 3D model of a real human head, built from one routine brain MRI with free, open-source research tools.**
+**My actual head in 3D, in your browser. Built from my brain MRI with free, open-source neuroscience tools.**
 
-Rotate it, slice it open, take the skull off, pull the hemispheres apart, find the tiny inner ear, and click any part of the brain to learn what it does. It runs in a web browser, and you don't need a medical background.
+In October 2026 I had a brain MRI. The clinic sent me a link to a web viewer with grey slices, but I wanted the actual data,
+so I pulled it out of the portal and turned it into something anyone can play with:
+- rotate my head and slice it open;
+- take my skull off and pull my brain's hemispheres apart;
+- inflate my cortex like a balloon;
+- follow my optic nerves from the eyes to the brain;
+- find my tiny inner ears;
+- click any bit of my brain to learn what it does.
 
-👉 **Live demo:** https://volodymyrsmirnov.github.io/brain/ (after GitHub Pages is enabled, see [Publishing](#publishing))
+You don't need any medical background to explore it. Press **▶ Take the tour** for a guided walk-through.
+
+### 👉 [Open the live demo: volodymyrsmirnov.github.io/brain](https://volodymyrsmirnov.github.io/brain/)
+
+[![Open the live demo](docs/img/glass-head.jpg)](https://volodymyrsmirnov.github.io/brain/)
 
 | | | |
 |---|---|---|
 | ![Raw MRI as a 3D cloud](docs/img/volume.jpg) | ![See-through head](docs/img/glass-head.jpg) | ![Skull](docs/img/skull.jpg) |
 | *The raw scan as a 3D cloud* | *Glass head* | *Skull (atlas-based estimate)* |
 | ![Brain map](docs/img/brain-map.jpg) | ![Virtual cut](docs/img/slice.jpg) | ![Deep structures](docs/img/deep.jpg) |
-| *62 cortical regions* | *Virtual cut with the real MRI section* | *Deep structures in a glass brain* |
+| *Cortex regions* | *Virtual cut with the real MRI section* | *Deep structures in a glass brain* |
 
-> **Not a medical tool.** This is a visualization for curiosity and education. Automatic segmentation makes mistakes,
-> and nothing here says anything about anyone's health. The person who was scanned published it themselves.
+> **Not a medical tool.** It's a side project made out of curiosity. The algorithms are good but not perfect, and nothing
+> here says anything about my health. It's my head, and I'm happy to share it.
 
 ---
 
 ## What's in the model
 
-| Layer | Source scan | Method | Notes |
+| Layer | Source scan | Tool / method | Notes |
 |---|---|---|---|
-| Raw volume | T1 MPRAGE | direct volume rendering (ray marching, in the browser) | 1 mm, "Solid" and "X-ray" styles, cut planes with a real MRI section on the cut face |
-| Skin | T1 MPRAGE | intensity threshold + morphology | the face is recognisable |
-| Skull, eyes | T1 + T2 TSE | SimNIBS **charm** (atlas-based Bayesian segmentation) | bone is dark on MRI, so this is an *estimate* |
-| Cortex: 31 regions per hemisphere, grouped into 6 lobes | T1 MPRAGE | **FastSurfer** (deep learning, DKT atlas) | hover/click for names and plain-language descriptions |
-| Deep structures: ventricles, thalamus, caudate, putamen, pallidum, hippocampus, amygdala, accumbens, ventral DC, brainstem, white matter, cerebellum | T1 MPRAGE | FastSurfer | |
-| Inner ears (cochlea, vestibule, semicircular canals) | T2 SPACE, 0.3 mm | threshold + canal-width filtering | each is about 1 cm |
-| Veins | SWI | Frangi vesselness + hysteresis + density filter | some artefacts near the skull base |
+| Raw volume | T1 MPRAGE | volume rendering in the browser (GLSL ray marching) | "Solid" and "X-ray" styles; cuts show the real MRI section |
+| Skin | T1 | threshold + morphology | yes, that's my face |
+| Skull, split into skull cap, skull base, face, lower jaw, C1, C2 and below | T1 + T2 TSE | SimNIBS **charm** + my own bone-part split | bone is dark on MRI, so this is an *estimate* |
+| Eyes, optic nerves, eye muscles | T1 | charm eyeballs + cheapest-path nerve tracing + muscle cones | nerves are reliable, muscles approximate |
+| Cortex, 31 regions per hemisphere in 6 lobes | T1 | **FastSurfer** (DKT atlas) | |
+| Cortical surfaces (pial ↔ inflated) | T1 | charm surfaces + my own inflation | the "Inflate brain" slider |
+| Deep structures: ventricles, thalamus, basal ganglia, hippocampus, amygdala, brainstem, white matter | T1 | FastSurfer | |
+| Hypothalamus area: hypothalamus, mammillary bodies, fornix, optic chiasm and tracts, pituitary, pineal | T1 | FastSurfer **HypVINN** | |
+| Cerebellum: lobules I–X and vermis | T1 | FastSurfer **CerebNet** | |
+| Corpus callosum: genu, body, splenium | T1 | **FastSurfer-CC** | a midline slab, like in FreeSurfer |
+| Inner ears: cochlea, vestibule, semicircular canals | T2 SPACE, 0.3 mm | automatic labyrinth search + canal-width filter | each about 1 cm across |
+| Veins + dural sinuses | SWI (+ phase) + charm | Frangi vesselness, phase-based artefact map, gap bridging | some artefacts left near the skull base |
 
-Total: 96 meshes, ~3 million triangles, 28 MB of web data.
+All of it adds up to 167 meshes and ~4.2 million triangles, compressed to ~11 MB of web data.
 
-## Try it locally
+## Run it on your machine
 
 ```bash
 git clone https://github.com/volodymyrsmirnov/brain.git && cd brain
@@ -40,58 +56,68 @@ python3 -m http.server -d docs 8000
 # open http://localhost:8000
 ```
 
-The viewer is a single static page (`docs/index.html`) plus binary data (`docs/data/`). It needs a local web server because browsers don't let pages `fetch()` files from `file://` URLs. A Git LFS checkout is **not** needed just to view it.
+The viewer is a single static page (`docs/index.html`) plus data (`docs/data/`). It needs a local web server because
+browsers don't let pages `fetch()` files from `file://` URLs. You don't need Git LFS just to view it.
 
 ## Repository layout
 
 ```
-docs/                     the website (GitHub Pages root)
-  index.html              viewer: three.js + three-mesh-bvh, no build step
-  data/manifest.json      layer list: names, colours, groups, sizes
-  data/*.bin              gzip'd meshes (int16 vertices at 0.01 mm + uint32 triangles) and the volume
-  img/                    screenshots for this README
-data/                     ⚠ Git LFS
-  raw/mri_study_anonymized.zip   the full study: 2,058 DICOM files, 23 series, de-identified
-  derived/                intermediate results so you can skip the slow steps
-    t1.nii.gz             T1 MPRAGE as NIfTI
-    brain_mask.nii.gz     SynthStrip brain mask
-    aparc.DKTatlas+aseg.deep.mgz   FastSurfer labels
-    charm_tissues.nii.gz  SimNIBS charm labels (skin, bone, CSF, eyes, …)
-    inner_ear_labels.nii.gz
-    veins.nii.gz
-    head_all.glb          every mesh in one glTF file, for Blender etc.
+docs/                       the website (GitHub Pages root)
+  index.html                viewer: three.js + three-mesh-bvh + Draco, no build step
+  data/manifest.json        groups, layers, colours, sizes
+  data/*.drc                Draco-compressed meshes (≤ 0.05 mm quantization error)
+  data/volume.bin           1 mm T1 volume (uint8, delta-coded, gzip)
+  img/                      screenshots for this README
+data/                       ⚠ Git LFS
+  raw/mri_study_anonymized.zip   the full study: 2,058 DICOM files, 23 series, headers cleaned
+  derived/                  intermediate results, so you can skip the slow steps
+    t1.nii.gz, brain_mask.nii.gz, aparc.DKTatlas+aseg.deep.mgz, charm_tissues.nii.gz
+    hypothalamus_labels.*, cerebellum_lobules.*, corpus_callosum.*      (FastSurfer modules)
+    skull_parts.*, orbit_labels.*, inner_ear_labels.nii.gz, veins.nii.gz
+    surfaces/               pial / inflated cortical surfaces + per-vertex region and sulcal depth
+    head_all.glb            every mesh in one glTF file, for Blender etc.
 pipeline/
-  setup.sh                installs every tool (Homebrew, uv, Docker)
-  run_all.sh              the whole pipeline, step by step, resumable
-  anonymize_dicom.py      DICOM de-identification
-  seg_inner_ear.py        inner-ear segmentation
-  seg_veins.py            vein extraction from SWI
-  build_model.py          meshes + web data
+  setup.sh                  installs every tool (Homebrew, uv, Docker)
+  run_all.sh                the whole pipeline, step by step, resumable
+  anonymize_dicom.py        DICOM header cleaning
+  seg_fastsurfer_extras.sh  HypVINN, CerebNet, FastSurfer-CC (+ export_fastsurfer_extras.py)
+  seg_skull_parts.py        splits charm's bone into named parts
+  seg_orbit.py              optic nerves and eye muscles
+  seg_inner_ear.py          inner-ear labyrinths
+  seg_veins.py              veins (SWI) + dural sinuses
+  build_surfaces.py         cortical surfaces + inflation
+  build_model.py            meshes + web data
 ```
 
-## Methodology
+## How I made it
 
-### 1. Source data
+Short version: one MRI, a stack of free research tools that neuroscientists use every day, and a lot of trial and error.
+Long version, step by step:
+
+### 1. Getting my data out
 
 A routine clinical brain MRI ("RM Crânio-Encefálico") on a **Siemens MAGNETOM Skyra 3T** with a 20-channel head/neck coil:
-23 series, 2,058 DICOM images. The clinic's patient portal (Biotronics3D 3Dnet) shows images only in a web viewer,
-but it offers a hidden "download study" job, which the viewer's own JavaScript uses. Calling it returned the original
-DICOM files, not screenshots.
+23 series, 2,058 DICOM images. The clinic's patient portal (Biotronics3D 3Dnet) only shows images in a web viewer. That
+viewer's own JavaScript uses a "download the whole study" job that isn't exposed anywhere in the UI; calling it directly
+gave me the original DICOM files.
 
 Series used in this project:
 
 | Series | Type | Voxel size (mm) | TR / TE | Used for |
 |---|---|---|---|---|
-| 9 `t1_mprage_sag_p2_iso` | 3D T1-weighted MPRAGE | 0.6 × 0.5 × 0.5 | 2300 / 3.4 ms, TI 900 ms | brain, skin, volume rendering, reference space |
-| 14 `pd-t2_tse_tra` (echo 2) | 2D T2-weighted TSE | 0.45 × 0.45 × 3.96 | 4550 / 82 ms | helps charm separate bone from fluid |
+| 9 `t1_mprage_sag_p2_iso` | 3D T1-weighted MPRAGE | 0.6 × 0.5 × 0.5 | 2300 / 3.4 ms, TI 900 ms | almost everything; the reference space |
+| 14 `pd-t2_tse_tra` (echo 2) | 2D T2-weighted TSE | 0.45 × 0.45 × 3.96 | 4550 / 82 ms | helps charm tell bone from fluid |
 | 13 `t2_space_tra_iso` | 3D T2 SPACE | 0.32 × 0.32 × 0.30 | 1400 / 154 ms | inner ear |
-| 17 `t2_qswi_tra` (SWI) | susceptibility-weighted | 0.7 × 0.7 × 1.7 | 27 / 20 ms | veins |
+| 17 / 16 `t2_qswi_tra` | SWI magnitude / phase | 0.7 × 0.7 × 1.7 | 27 / 20 ms | veins / artefact map |
 
-The other series (FLAIR, diffusion/ADC, coronal T2, ear reconstructions, SWI phase/mIP) are in the archive but not used yet.
+The rest (FLAIR, diffusion trace/ADC, coronal T2, ear reconstructions, SWI mIP) is in the archive too. The FLAIR was
+tried for the skull (see below); the diffusion series are trace/ADC only, so there's no tractography.
 
-### 2. De-identification ([`anonymize_dicom.py`](pipeline/anonymize_dicom.py))
+### 2. Cleaning the headers ([`anonymize_dicom.py`](pipeline/anonymize_dicom.py))
 
-Before anything was committed, every DICOM header was scrubbed, roughly following the DICOM PS3.15 Basic profile:
+I'm not hiding whose head this is, but DICOM headers carry a lot of record-keeping data that doesn't belong in a public
+repo (patient and accession numbers, date of birth, the clinic's address, the names of the doctors). So before anything
+was committed, every header was scrubbed, roughly following the DICOM PS3.15 Basic profile:
 - all person names were blanked;
 - patient ID, birth date, address and other identifiers were removed;
 - institution, station and device serial number were removed;
@@ -100,134 +126,198 @@ Before anything was committed, every DICOM header was scrubbed, roughly followin
 - every UID was replaced with a fresh one;
 - all private vendor tags were stripped.
 
-Sex, age and every acquisition parameter were kept. The portal's `DICOMDIR` and `Readme.html` were dropped.
+Sex, age and every acquisition parameter were kept. The portal's `DICOMDIR` and `Readme.html` were dropped. A byte-level
+search confirmed that none of the original identifiers remain, and the cleaned files convert to **voxel-identical** volumes.
 
-A byte-level search of the output confirmed that none of the original identifiers remain, and converting the anonymized files gives **voxel-identical** NIfTI volumes.
-
-> The images themselves still show the face (it is a 3D head scan). That is a deliberate choice of the person scanned.
+> The images themselves of course show my face. It's a 3D head scan, and that's fine with me.
 
 ### 3. DICOM → NIfTI
 
-[`dcm2niix`](https://github.com/rordenlab/dcm2niix) converts each series to compressed NIfTI. All series share the scanner's patient coordinate system, so they line up without registration. Every later step works in **world RAS millimetres**.
+[`dcm2niix`](https://github.com/rordenlab/dcm2niix) converts each series to compressed NIfTI. All series share the
+scanner's coordinate system, so they line up without registration. Every later step works in **world RAS millimetres**.
 
 ### 4. Skull stripping
 
-[SynthStrip](https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/) (FreeSurfer, run in Docker) predicts a brain mask from the T1 scan. It works on any contrast and resolution. The veins step uses this mask.
+[SynthStrip](https://surfer.nmr.mgh.harvard.edu/docs/synthstrip/) (FreeSurfer, in Docker) predicts a brain mask from the T1.
+The veins step uses it.
 
 ### 5. Brain segmentation
 
-[FastSurfer](https://github.com/Deep-MI/FastSurfer) v2.6 (`--seg_only`, native high-resolution mode, run on the Apple GPU via PyTorch MPS) labels ~100 structures. Its labels follow FreeSurfer's `aparc.DKTatlas+aseg` scheme:
-- 31 cortical regions per hemisphere from the Desikan–Killiany–Tourville atlas;
-- subcortical structures, ventricles, cerebellum and brainstem.
+[FastSurfer](https://github.com/Deep-MI/FastSurfer) v2.6 (`--seg_only`, native 0.5 mm mode, on the Apple GPU via PyTorch
+MPS) labels ~100 structures in FreeSurfer's `aparc.DKTatlas+aseg` scheme: 31 cortical regions per hemisphere
+(Desikan–Killiany–Tourville atlas), plus subcortical structures, ventricles, cerebellum and brainstem. The cortical regions
+are grouped into frontal, parietal, temporal and occipital lobes, the cingulate gyrus and the insula.
 
-The cortical regions are grouped into frontal, parietal, temporal and occipital lobes, plus the cingulate gyrus and the insula.
+Three more FastSurfer modules run on top of that segmentation ([`seg_fastsurfer_extras.sh`](pipeline/seg_fastsurfer_extras.sh)),
+none of which needs a FreeSurfer licence:
+- **HypVINN:** 24 labels around the hypothalamus. These are the hypothalamic subregions, mammillary bodies, fornix,
+  anterior commissure, optic chiasm and tracts, pituitary gland and stalk, and pineal gland. It ran on the T1 only: the
+  FLAIR has the wrong contrast, the T2 TSE is too thick, and the T2 SPACE slab covers only a third of the region.
+  At 0.5 mm, HypVINN's own clean-up silently drops the optic tracts (its connectivity test assumes a coarser voxel), so
+  the helper patches that test.
+- **CerebNet:** 25 cerebellar lobules and vermis parts. CerebNet works at 1 mm; the result is lifted onto the 0.5 mm grid
+  and clipped to the main cerebellum mask, so the lobules tile it exactly.
+- **FastSurfer-CC:** the corpus callosum, split into genu, three body parts and splenium (Hofer–Frahm scheme). Like in
+  FreeSurfer it's a ~5 mm slab at the midline; the fibres fanning out into the hemispheres can't be told apart on a T1.
 
-### 6. Head tissues and skull
+### 6. Cortical surfaces and inflation ([`build_surfaces.py`](pipeline/build_surfaces.py))
 
-Bone has almost no MRI signal. A first attempt that thresholded the dark band between scalp and brain produced only a rough cap.
+FastSurfer gives the cortex as voxels; for the "Inflate brain" slider I needed real surfaces where every point on the
+folded (pial) surface has a matching point on the inflated one.
+- **Surfaces:** SimNIBS `charm --surfaces` runs **TopoFit**, a deep-learning model that deforms a sphere-like template
+  onto the cortex. The white (grey/white boundary) and pial (outer) surfaces come out hole-free and share one mesh,
+  vertex for vertex. That's a second, T1-only charm run, and no FreeSurfer licence is needed.
+- **Inflation:** FreeSurfer-style. The white surface is smoothed 3000 times while its area is kept constant, and the
+  movement along the normal is summed into **sulcal depth** (dark = deep groove). For the viewer the inflated surface is
+  scaled back to the size of the brain, so it doesn't burst out of the head mid-morph.
+- **Regions:** each vertex samples the FastSurfer DKT labels at 5 points through the cortex and takes a majority vote.
+  The medial wall (where the hemispheres touch) has no region and shows grey.
+- **Size:** decimated to 150k vertices per hemisphere with the same vertex groups on all surfaces, so the
+  correspondence survives. The median cortical thickness comes out at 2.9–3.0 mm, about what you'd expect.
 
-[SimNIBS](https://simnibs.github.io/simnibs/) 4.6 `charm` does much better:
-1. It registers the T2 TSE scan to the T1.
-2. It fits a probabilistic head atlas with a Bayesian (samseg) model.
-3. The result labels skin, compact and spongy bone, CSF, eyes, muscle and more.
+### 7. Head tissues and skull
 
-The skull mesh is compact plus spongy bone. Ripples on the back of the head come from the T2 scan's 4 mm slices.
+Bone is nearly invisible on MRI. My first attempt (thresholding the dark band between scalp and brain) only produced a
+rough cap.
 
-### 7. Inner ear ([`seg_inner_ear.py`](pipeline/seg_inner_ear.py))
+[SimNIBS](https://simnibs.github.io/simnibs/) 4.6 `charm` does much better: it registers the T2 TSE to the T1, fits a
+probabilistic head atlas with a Bayesian (samseg) model, and labels skin, compact and spongy bone, CSF, eyes, muscle,
+blood and more.
 
-On the 0.3 mm T2 SPACE scan, the fluid-filled labyrinth is bright inside dark bone. The method:
-1. Pick a region of interest around each petrous bone. **These ROIs are hand-picked for this scan;** see the comments in the script.
-2. Apply an Otsu threshold.
-3. Remove the internal auditory canal. It is the thick (> 1.1 mm core radius) fluid channel entering from the brain side; the labyrinth's canals are only ~1 mm wide, so they survive this filter.
-4. Remove fragments cut off at the region borders.
-5. Keep pieces within 1.5 mm of the main labyrinth.
+The back of the skull has ripples from the T2 scan's 4 mm slices. I tried charm with the 0.5 mm 3D FLAIR and with the T1
+alone, and measured surface roughness on all three. The FLAIR removes the stair-steps but adds a finer bumpy texture,
+holes in the face and a ragged jaw. After smoothing, the original T2 TSE version still looks best, so it stays.
 
-The result shows the cochlea, the vestibule and the three semicircular canals.
+**Bone parts** ([`seg_skull_parts.py`](pipeline/seg_skull_parts.py)): charm gives one "bone" label, which I split into
+skull cap, skull base, facial skeleton, lower jaw, C1 (atlas) and the cervical vertebrae below it.
+- Seeds come from simple landmarks: the eyes, the spinal cord (charm's white matter outside the brain) and the foramen
+  magnum (the lowest point of the cerebellum).
+- The seeds grow over the bone by watershed on bone thickness, so borders land at the jaw joints and between skull and spine.
+- Upper and lower teeth touch on MRI, so the jaws are cut at the bite plane, found as the narrowest point of the dental arch.
+- MRI can't see sutures, so the face/cranium and cap/base borders are geometric cuts (that's why they're straight lines).
 
-### 8. Veins ([`seg_veins.py`](pipeline/seg_veins.py))
+**Optic nerves and eye muscles** ([`seg_orbit.py`](pipeline/seg_orbit.py)): on T1 the orbit is bright fat with dark
+nerve and muscles in it.
+- Each optic nerve is the cheapest path from the back of the eyeball to the chiasm through dark tissue. It may not go
+  through bone, eye, air or brain, and the optic canal is where the path comes closest to bone.
+- The muscles are the dark tissue inside a cone from the canal to the eyeball, split by angle into the four recti and
+  the superior oblique.
+- The nerves are reliable; the individual muscle shapes are approximate.
 
-On SWI, deoxygenated blood is dark. The steps:
-1. Resample the SWI to 0.7 mm isotropic and normalise it by a 6 mm local mean.
-2. Compute Frangi vesselness for dark tubes 0.5–1.8 mm wide, inside the SynthStrip brain mask.
-3. Apply hysteresis thresholding (99.3th / 97th percentile), so veins stay continuous across the thick SWI slices.
-4. Apply a local-density filter: real veins are sparse threads, while the susceptibility artefacts near the sinuses form a dense mesh.
-5. Drop specks under 40 mm³.
+### 8. Inner ear ([`seg_inner_ear.py`](pipeline/seg_inner_ear.py))
 
-Several parameter sets were compared visually; the trade-offs are documented in the script.
+On the 0.3 mm T2 SPACE scan the fluid-filled labyrinth is bright inside dark bone. The script finds both labyrinths on
+its own:
+1. It searches 22–62 mm to each side of the brainstem.
+2. It removes thick fluid (cisterns, the internal auditory canal).
+3. It scores the remaining bright pieces by how much of their surroundings is bone, and takes the best one per side.
 
-### 9. Surfaces and web export ([`build_model.py`](pipeline/build_model.py))
+The internal auditory canal touches the cochlea, so it's cut away by modelling it as a cylinder along its axis.
+Manual regions can still be passed with `--roi-left/--roi-right`. The result is the cochlea, the vestibule and the three
+semicircular canals.
 
-Each label becomes a surface:
+### 9. Veins and dural sinuses ([`seg_veins.py`](pipeline/seg_veins.py))
+
+On SWI, oxygen-poor blood is dark. The steps:
+1. Normalise the SWI and compute Frangi vesselness for dark tubes 0.5–1.8 mm wide, inside the SynthStrip brain mask.
+2. Build an **artefact map** from the SWI phase. Near air (sinuses, ear canals) the phase wraps, and that's exactly
+   where the fake "veins" came from. Risky areas then need about 3× stronger evidence.
+3. Run hysteresis thresholding so veins stay continuous across the 1.7 mm slices, plus a local-density filter
+   (real veins are sparse threads, artefacts are a dense mesh).
+4. Pieces in risky areas must be tube-shaped.
+5. Bridge gaps of up to 5 mm along the vessel direction where the vesselness supports it (this joined 381 pieces into 47).
+6. Add the **dural sinuses** (superior sagittal, straight, transverse, sigmoid) from charm's blood label, keeping only
+   voxels that are also dark on SWI. The carotid arteries are dark too, so they're removed by position.
+
+### 10. Meshes and web export ([`build_model.py`](pipeline/build_model.py))
+
+Every label becomes a surface:
 1. Crop to the label and apply a light Gaussian blur.
 2. Run marching cubes ([scikit-image](https://scikit-image.org)).
 3. Decimate the mesh ([fast-simplification](https://github.com/pyvista/fast-simplification)).
 4. Apply Taubin smoothing ([trimesh](https://trimesh.org)).
-5. Transform the vertices to world millimetres through each volume's affine, then centre them on the T1 volume.
+5. Move it to world millimetres through the volume's affine, centred on the T1.
 
-Vertices are stored as int16 at 0.01 mm and triangles as uint32, gzip-compressed into one file per layer. The T1 volume is resampled to 1 mm, normalised to uint8 and stored the same way.
+New label files are picked up automatically from `data/derived/*.nii.gz` + `.json` (see `LABEL_SETS`), and labels that
+duplicate another source are skipped (for example, the optic nerves come from `seg_orbit.py`, the chiasm from HypVINN).
 
-### 10. Viewer ([`docs/index.html`](docs/index.html))
+Meshes are **Draco**-compressed with quantization picked per mesh (≤ 0.05 mm error). The 1 mm T1 volume is delta-coded and
+gzipped. Together that's ~11 MB, down from 28 MB in the first version.
+
+### 11. Viewer ([`docs/index.html`](docs/index.html))
 
 Plain HTML + [three.js](https://threejs.org), with no build step:
-- **Hover and click** run on [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh), so picking stays fast across 3M triangles.
-- **Volume rendering** is a custom GLSL ray marcher over a 3D texture. "Solid" composites front to back with gradient shading; "X-ray" accumulates absorption.
-- **Cut planes** clip both the meshes and the volume. Where a ray leaves the removed half, it shows the MRI intensity, so the cut face looks like a real slice.
+- **Loading:** the volume rendering shows up first; the meshes stream in behind it.
+- **Picking:** hover and click run on [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh), so picking stays fast
+  across 4M triangles. Every structure has a short plain-language description.
+- **Volume rendering:** a custom GLSL ray marcher over a 3D texture. "Solid" composites front to back with gradient
+  shading; "X-ray" accumulates absorption.
+- **Cuts:** cut planes clip both the meshes and the volume. Where a ray leaves the removed half it shows the MRI
+  intensity, so the cut face looks like a real slice.
+- **Inflate brain:** the cortical surfaces morph between pial and inflated on the GPU (morph targets).
+- **Tour:** the guided views double as steps of a narrated "Take the tour" story with camera flights.
 - **Shading:** screen-space ambient occlusion (GTAO), switched off automatically for translucent scenes.
 
-## Reproduce it
+## Do it yourself
 
-You need macOS on Apple Silicon (tested), Homebrew, Docker (OrbStack works), and ~20 GB of disk space.
+You need macOS on Apple Silicon (tested), Homebrew, Docker (OrbStack works), and ~30 GB of disk space.
 
 ```bash
 git lfs install && git lfs pull      # fetch data/ (~0.5 GB)
 pipeline/setup.sh                    # tools: dcm2niix, FastSurfer, SimNIBS, SynthStrip
-pipeline/run_all.sh                  # ~1 hour; resumable, writes data/derived and docs/data
+pipeline/run_all.sh                  # a few hours; resumable, writes data/derived and docs/data
 ```
 
-To regenerate only the web model from the committed intermediate results (5 minutes, Python only):
+Most of the time goes into SimNIBS charm (~1 h per run on an idle machine; it runs twice: head tissues, and the cortical
+surfaces) and HypVINN.
+
+To regenerate only the web model from the committed intermediate results (a few minutes, Python only):
 
 ```bash
 uv venv .venv && VIRTUAL_ENV=.venv uv pip install -r pipeline/requirements.txt
 .venv/bin/python pipeline/build_model.py data/derived docs/data work/meshes
 ```
 
-To process **your own** MRI:
-1. Anonymize it with `anonymize_dicom.py`.
+To do this with **your own** MRI:
+1. Clean the headers with `anonymize_dicom.py`.
 2. Adjust the series names at the top of `run_all.sh`.
-3. Re-pick the inner-ear ROIs.
 
-Without an SWI or a thin-slice T2 scan, the veins and inner-ear steps simply won't apply.
+Without an SWI or a thin-slice T2 scan, the veins and inner-ear steps won't apply. Thresholds in the orbit, ear and vein
+steps were tuned on my scan, so check the results.
 
-## Limitations
+## Things that aren't perfect
 
-- **Skull:** atlas-guided estimate from MRI, not CT. The overall shape is right; thin bones and sutures are not.
-- **Veins:** artefacts near the skull base and some broken vessels, because of SWI's 1.7 mm slices.
-- **Inner ear:** hand-picked ROIs; the right side has a small extra stub (likely a nerve or vessel).
-- **Labels:** automatic segmentation can be off by a millimetre or two at region borders.
+- **Skull:** an atlas-guided estimate from MRI, not a CT. The overall shape is right; thin bones and sutures are not.
+  Some face/cranium and cap/base borders are straight cuts, and C2–C7 are one piece.
+- **Eye muscles:** roughly in the right places, but the exact shapes are approximate.
+- **Veins:** a small cluster of artefacts remains near the sphenoid bone, and a few real veins at the frontal base are missing.
+  The sinuses come from an atlas, so they're smooth and slightly thick.
+- **Corpus callosum:** only the midline slab.
+- **Labels in general:** automatic segmentation can be off by a millimetre or two at region borders.
 
-## Publishing
+## Publishing your own copy
 
-1. Create an empty GitHub repository named `brain`.
-2. Push:
-   ```bash
-   git remote add origin git@github.com:volodymyrsmirnov/brain.git
-   git push -u origin main          # LFS objects upload automatically (~0.5 GB)
-   ```
+1. Create an empty GitHub repository.
+2. Push it (`git push -u origin main`); the LFS objects upload automatically (~0.5 GB).
 3. On GitHub, open **Settings → Pages** and set **Deploy from a branch → `main` / `/docs`**.
 
-GitHub Pages can't serve Git LFS files, which is why `docs/` is in plain git (28 MB) while only `data/` uses LFS. Free GitHub accounts include a limited amount of LFS storage and bandwidth; check your quota before sharing widely.
+GitHub Pages can't serve Git LFS files, which is why `docs/` is in plain git (~11 MB) while only `data/` uses LFS. Free
+GitHub accounts have a limited LFS quota, so check it before sharing widely.
 
 ## Credits
 
-- **FastSurfer:** Henschel et al., *NeuroImage* 2020; Henschel et al., *NeuroImage* 2022 (VINN, high-resolution)
+- **FastSurfer:** Henschel et al., *NeuroImage* 2020; Henschel et al., *NeuroImage* 2022 (FastSurferVINN, high-resolution)
+- **HypVINN:** Estrada et al., *Imaging Neuroscience* 2023
+- **CerebNet:** Faber et al., *NeuroImage* 2022
+- **FastSurfer-CC:** Pollak et al., *Imaging Neuroscience* 2026; subdivision after Hofer & Frahm, *NeuroImage* 2006
 - **SimNIBS charm:** Puonti et al., *NeuroImage* 2020
 - **SynthStrip:** Hoopes et al., *NeuroImage* 2022
 - **DKT atlas:** Klein & Tourville, *Frontiers in Neuroscience* 2012
 - **Frangi vesselness:** Frangi et al., *MICCAI* 1998
 - **dcm2niix:** Li et al., *J Neurosci Methods* 2016
-- three.js, three-mesh-bvh, scikit-image, trimesh, nibabel, pydicom
+- three.js, three-mesh-bvh, Draco, scikit-image, trimesh, nibabel, pydicom, pyvista
 
 ## License
 
 - **Code** (`pipeline/`, `docs/index.html`): [MIT](LICENSE)
-- **Imaging data and 3D model** (`data/`, `docs/data/`): [CC BY 4.0](LICENSE-DATA). Please don't try to re-identify the person or draw conclusions about their health.
+- **Imaging data and 3D model** (`data/`, `docs/data/`): [CC BY 4.0](LICENSE-DATA). Please don't draw conclusions about my health from it.
