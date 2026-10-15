@@ -15,14 +15,20 @@ You don't need any medical background to explore it. Press **▶ Take the tour**
 
 ### 👉 [Open the live demo: volodymyrsmirnov.github.io/brain](https://volodymyrsmirnov.github.io/brain/)
 
-[![Open the live demo](docs/img/glass-head.jpg)](https://volodymyrsmirnov.github.io/brain/)
+[![Open the live demo](docs/img/og.jpg)](https://volodymyrsmirnov.github.io/brain/)
 
 | | | |
 |---|---|---|
-| ![Raw MRI as a 3D cloud](docs/img/volume.jpg) | ![See-through head](docs/img/glass-head.jpg) | ![Skull](docs/img/skull.jpg) |
-| *The raw scan as a 3D cloud* | *Glass head* | *Skull (atlas-based estimate)* |
-| ![Brain map](docs/img/brain-map.jpg) | ![Virtual cut](docs/img/slice.jpg) | ![Deep structures](docs/img/deep.jpg) |
-| *Cortex regions* | *Virtual cut with the real MRI section* | *Deep structures in a glass brain* |
+| ![Raw MRI as a 3D cloud](docs/img/volume.jpg) | ![See-through head](docs/img/glass-head.jpg) | ![Skull split into bones](docs/img/skull.jpg) |
+| *The raw scan as a 3D cloud* | *Glass head* | *Skull, split into bones (atlas-based estimate)* |
+| ![Brain map](docs/img/brain-map.jpg) | ![Inflated cortex](docs/img/inflated.jpg) | ![Split brain](docs/img/split.jpg) |
+| *Cortex regions* | *The same cortex, inflated* | *Hemispheres apart, corpus callosum in the middle* |
+| ![Deep structures](docs/img/deep.jpg) | ![Hypothalamus area](docs/img/hypothalamus.jpg) | ![Cerebellum](docs/img/cerebellum.jpg) |
+| *Deep structures in a glass brain* | *Hypothalamus, pituitary, optic chiasm* | *Cerebellar lobules* |
+| ![Eyes and optic nerves](docs/img/eyes.jpg) | ![Inner ear](docs/img/inner-ear.jpg) | ![Veins](docs/img/veins.jpg) |
+| *Eyes, optic nerves, eye muscles* | *Right inner ear, about 1 cm* | *Veins and dural sinuses* |
+| ![Virtual cut](docs/img/slice.jpg) | | |
+| *Virtual cut with the real MRI section* | | |
 
 > **Not a medical tool.** It's a side project made out of curiosity. The algorithms are good but not perfect, and nothing
 > here says anything about my health. It's my head, and I'm happy to share it.
@@ -67,7 +73,7 @@ docs/                       the website (GitHub Pages root)
   data/manifest.json        groups, layers, colours, sizes
   data/*.drc                Draco-compressed meshes (≤ 0.05 mm quantization error)
   data/volume.bin           1 mm T1 volume (uint8, delta-coded, gzip)
-  img/                      screenshots for this README
+  img/                      README screenshots and og.jpg (link preview), made by pipeline/screenshots.py
 data/                       ⚠ Git LFS
   raw/mri_study_anonymized.zip   the full study: 2,058 DICOM files, 23 series, headers cleaned
   derived/                  intermediate results, so you can skip the slow steps
@@ -87,6 +93,7 @@ pipeline/
   seg_veins.py              veins (SWI) + dural sinuses
   build_surfaces.py         cortical surfaces + inflation
   build_model.py            meshes + web data
+  screenshots.py            README screenshots + link-preview image (needs Playwright)
 ```
 
 ## How I made it

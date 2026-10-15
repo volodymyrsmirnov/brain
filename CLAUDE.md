@@ -177,6 +177,12 @@ third ventricle and pallidus, and CerebNet's white matter are skipped. `skull_pa
 **Morphology**: never use `binary_dilation` with big ball structuring elements on 0.5–0.75 mm grids (took >10 min).
 Use distance transforms (`dil`/`ero`/`close_`/`open_` helpers pattern).
 
+**Screenshots** (`pipeline/screenshots.py`, Playwright in `work/pwenv`, ~1 min): serves `docs/`, hides the UI,
+opens each guided view, re-frames on the visible meshes (opacity > 0.3, optional focus filter) and writes
+`docs/img/*.jpg` plus the 1200×630 link preview `docs/img/og.jpg` (title text overlay, head shifted right with
+`setViewOffset`). The og/twitter meta tags in `index.html` point at the absolute GitHub Pages URL. Re-run it after
+visual changes so the README matches the app. `window.viewer.THREE` is exposed for it.
+
 **Rendering previews** headless: pyvista with `pv.OFF_SCREEN=True` → PNG (pyvista is in `.venv`). Good preview
 scripts: `work/skull-orbit/render_labels.py` (any label map + LUT), `work/veins-ear/render.py`,
 `work/fastsurfer-extras/previews/render.py`.

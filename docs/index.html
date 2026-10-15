@@ -6,6 +6,17 @@
 <title>MRI Head Explorer</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%A7%A0%3C/text%3E%3C/svg%3E">
 <meta name="description" content="Explore my head in 3D: I turned my own brain MRI into an interactive model of my brain, skull, inner ears and veins.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://volodymyrsmirnov.github.io/brain/">
+<meta property="og:title" content="My head, in 3D">
+<meta property="og:description" content="Explore my head in 3D: I turned my own brain MRI into an interactive model of my brain, skull, inner ears and veins.">
+<meta property="og:image" content="https://volodymyrsmirnov.github.io/brain/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="My head, in 3D">
+<meta name="twitter:description" content="Explore my head in 3D: I turned my own brain MRI into an interactive model of my brain, skull, inner ears and veins.">
+<meta name="twitter:image" content="https://volodymyrsmirnov.github.io/brain/img/og.jpg">
 <style>
   :root {
     --bg:#0b0c10; --panel:rgba(20,22,28,.92); --panel-solid:#15171d; --text:#e8eaf0; --muted:#9aa1ad;
@@ -1153,7 +1164,7 @@ $('loading').remove();
 performance.mark('mri:first-view');
 let seen = false; try { seen = localStorage.getItem('mri-explorer-seen') === '1'; localStorage.setItem('mri-explorer-seen', '1'); } catch {}
 if (!seen) openModal('help');
-window.viewer = { scene, camera, controls, items, startTour, story, storyStart, storyGo, storyExit, setInflate, setSurfColors,
+window.viewer = { THREE, scene, camera, controls, items, startTour, story, storyStart, storyGo, storyExit, setInflate, setSurfColors,
                   setExplode, meshesReady, infoFor, pick: (x, y) => pick({ clientX: x, clientY: y }) };
 
 renderer.setAnimationLoop(() => {
