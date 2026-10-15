@@ -4,7 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MRI Head Explorer</title>
-<meta name="description" content="Explore a real human head in 3D, reconstructed from an MRI scan: brain regions, skull, inner ear and veins.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%A7%A0%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Explore my head in 3D: I turned my own brain MRI into an interactive model of my brain, skull, inner ears and veins.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://volodymyrsmirnov.github.io/brain/">
+<meta property="og:title" content="My head, in 3D">
+<meta property="og:description" content="Explore my head in 3D: I turned my own brain MRI into an interactive model of my brain, skull, inner ears and veins.">
+<meta property="og:image" content="https://volodymyrsmirnov.github.io/brain/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="My head, in 3D">
+<meta name="twitter:description" content="Explore my head in 3D: I turned my own brain MRI into an interactive model of my brain, skull, inner ears and veins.">
+<meta name="twitter:image" content="https://volodymyrsmirnov.github.io/brain/img/og.jpg">
 <style>
   :root {
     --bg:#0b0c10; --panel:rgba(20,22,28,.92); --panel-solid:#15171d; --text:#e8eaf0; --muted:#9aa1ad;
@@ -20,6 +32,7 @@
   button.on { border-color:var(--accent); color:var(--accent); }
   input[type=range] { width:100%; accent-color:var(--accent); }
   a { color:var(--accent); }
+  [hidden] { display:none !important; }
 
   /* ---------- panel ---------- */
   #panel { position:fixed; top:12px; left:12px; width:310px; max-height:calc(100% - 24px); overflow:auto;
@@ -32,6 +45,10 @@
   .icon-btns { display:flex; gap:5px; }
   .icon-btns button { padding:3px 8px; }
   h2 { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:16px 0 7px; font-weight:650; }
+  #story-btn { width:100%; padding:10px; margin:2px 0 4px; border:0; border-radius:10px; font-weight:700; font-size:14px;
+    color:#0b0d12; background:linear-gradient(90deg,var(--accent),var(--accent-2)); box-shadow:0 2px 14px rgba(122,162,255,.25); }
+  #story-btn:hover { filter:brightness(1.08); }
+  #story-btn small { display:block; font-weight:500; font-size:11px; opacity:.75; }
   .tours { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
   .tour { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px; border-radius:10px; text-align:center; font-size:11.5px; line-height:1.2; }
   .tour .ico { font-size:19px; }
@@ -49,11 +66,26 @@
   details[open] summary .arrow { transform:rotate(90deg); }
   .row { display:flex; align-items:center; gap:8px; margin:3px 0 3px 18px; }
   .row label, summary label { display:flex; align-items:center; gap:7px; cursor:pointer; flex:1; }
+  .ginfo { margin:2px 0 4px 18px; color:var(--muted); font-size:11px; line-height:1.35; }
   .sw { width:11px; height:11px; border-radius:3px; display:inline-block; flex:none; }
   .op { margin:2px 0 4px 18px; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; }
   .btns { display:flex; flex-wrap:wrap; gap:5px; }
   .foot { color:var(--muted); font-size:11px; margin-top:14px; }
   #toggle { position:fixed; top:12px; left:12px; z-index:4; display:none; }
+
+  /* ---------- top-right: GitHub + loading pill ---------- */
+  #gh { position:fixed; top:12px; right:12px; z-index:4; display:flex; align-items:center; gap:7px; text-decoration:none;
+    color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:6px 11px;
+    backdrop-filter:blur(10px); font-weight:600; }
+  #gh:hover { background:var(--card-hover); }
+  #gh svg { width:18px; height:18px; fill:currentColor; flex:none; }
+  #mesh-load { position:fixed; top:56px; right:12px; z-index:4; display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:5px 11px 5px 9px;
+    color:var(--muted); font-size:11.5px; backdrop-filter:blur(10px); pointer-events:none; transition:opacity .4s; }
+  #mesh-load .ring { width:14px; height:14px; border-radius:50%; flex:none;
+    background:conic-gradient(var(--accent) calc(var(--p,0) * 1%), var(--line) 0);
+    -webkit-mask:radial-gradient(circle, transparent 4px, #000 4.5px); mask:radial-gradient(circle, transparent 4px, #000 4.5px); }
+  #mesh-load.done { opacity:0; }
 
   /* ---------- overlays ---------- */
   #tip { position:fixed; pointer-events:none; background:rgba(10,11,14,.95); border:1px solid var(--line); border-radius:8px;
@@ -68,7 +100,17 @@
   #caption h3 { margin:0 0 3px; font-size:15px; }
   #caption p { margin:0; color:#c9cdd6; }
   #caption .meta { color:var(--muted); font-size:11px; margin-top:5px; }
+  #caption .meta:empty { display:none; }
   #caption .x { position:absolute; top:8px; right:8px; border:0; background:transparent; color:var(--muted); font-size:16px; padding:2px 6px; }
+  #story-ctl { display:none; margin-top:10px; }
+  #caption.story #story-ctl { display:block; }
+  #caption.story { padding-right:16px; }
+  #caption.story .x { display:none; }
+  #story-ctl .bar { height:4px; border-radius:2px; background:var(--line); overflow:hidden; }
+  #story-ctl .bar div { height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+  #story-ctl .ctl { display:flex; align-items:center; gap:6px; margin-top:8px; }
+  #story-ctl .ctl button { padding:4px 10px; }
+  #story-ctl .count { color:var(--muted); font-size:11px; margin-right:auto; }
   .modal { position:fixed; inset:0; background:rgba(5,6,9,.72); display:none; align-items:center; justify-content:center; z-index:10; padding:16px; }
   .modal.show { display:flex; }
   .modal .box { background:var(--panel-solid); border:1px solid var(--line); border-radius:16px; max-width:620px; width:100%;
@@ -93,6 +135,9 @@
     #panel { width:calc(100% - 24px); max-height:52%; top:auto; bottom:12px; }
     #toggle { display:block; }
     #caption { bottom:auto; top:56px; }
+    #gh { padding:6px 8px; }
+    #gh span { display:none; }
+    #mesh-load { top:14px; right:58px; }
     .tours { grid-template-columns:repeat(4,1fr); }
   }
 </style>
@@ -103,14 +148,30 @@
 <div id="loading">
   <div class="title">MRI Head Explorer</div>
   <div class="bar"><div class="fill" id="load-fill"></div></div>
-  <div id="load-text">Loading 3D model…</div>
+  <div id="load-text">Loading my head…</div>
 </div>
 
 <div id="tip"></div>
 <div id="ruler-label"></div>
 <button id="toggle">☰ Menu</button>
+<a id="gh" href="https://github.com/volodymyrsmirnov/brain" target="_blank" rel="noopener" title="View the source code on GitHub" aria-label="View on GitHub">
+  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  <span>View on GitHub</span>
+</a>
+<div id="mesh-load" hidden><div class="ring"></div><span id="mesh-load-text">Loading 3D models…</span></div>
 
-<div id="caption"><button class="x" id="cap-x" aria-label="Close">×</button><h3 id="cap-title"></h3><p id="cap-text"></p><div class="meta" id="cap-meta"></div></div>
+<div id="caption"><button class="x" id="cap-x" aria-label="Close">×</button><h3 id="cap-title"></h3><p id="cap-text"></p><div class="meta" id="cap-meta"></div>
+  <div id="story-ctl">
+    <div class="bar"><div id="story-bar"></div></div>
+    <div class="ctl">
+      <span class="count" id="story-count"></span>
+      <button id="story-prev" title="Previous (←)" aria-label="Previous">⏮</button>
+      <button id="story-pause" title="Pause (Space)" aria-label="Pause">⏸</button>
+      <button id="story-next" title="Next (→)" aria-label="Next">⏭</button>
+      <button id="story-exit" title="Exit the tour (Esc)">✕ Exit</button>
+    </div>
+  </div>
+</div>
 
 <div id="panel">
   <div class="brand">
@@ -118,6 +179,7 @@
     <div class="icon-btns"><button id="help-btn" title="How to use">?</button><button id="about-btn" title="About this project">ⓘ</button></div>
   </div>
 
+  <button id="story-btn">▶ Take the tour<small>A 2-minute guided tour, step by step</small></button>
   <h2>Guided views</h2>
   <div class="tours" id="tours"></div>
 
@@ -133,6 +195,11 @@
 
   <h2>Tools</h2>
   <div class="line"><span class="lbl">Split brain</span><input type="range" id="explode" min="0" max="60" value="0"></div>
+  <div id="surf-tools" hidden>
+    <div class="line"><span class="lbl">Inflate brain</span><input type="range" id="inflate" min="0" max="100" value="0"></div>
+    <div class="line"><span class="lbl">Colours</span>
+      <div class="seg" style="flex:1"><button id="sc-regions" class="on">Regions</button><button id="sc-folds">Folds</button></div></div>
+  </div>
   <div class="line">
     <select id="clip-axis" style="flex:1">
       <option value="none">No cut</option>
@@ -158,55 +225,62 @@
     <button data-view="front">Front</button><button data-view="left">Left</button><button data-view="right">Right</button>
     <button data-view="top">Top</button><button data-view="back">Back</button><button data-view="bottom">Bottom</button>
   </div>
-  <p class="foot">Not a medical tool. Built from one person's MRI, shared with their consent. <a href="#" id="about-link">How it was made</a></p>
+  <p class="foot">This is my actual head, from my own MRI. Not a medical tool. <a href="#" id="about-link">How I made it</a></p>
 </div>
 
 <div class="modal" id="help">
   <div class="box">
-    <h2>Welcome inside a real human head 🧠</h2>
-    <p>Everything you see was reconstructed from a single MRI scan of a real person: the skin, the skull, the brain with its folds,
-      the tiny inner ear and even the veins. Nothing here is a generic textbook model.</p>
+    <h2>Welcome inside my head 🧠</h2>
+    <p>Hi, I’m Volodymyr. In October 2026 I had a routine brain MRI. The clinic only gave me a viewer with grey slices, so I
+      pulled the raw scan data out, ran it through a bunch of open-source neuroscience tools, and built this. Everything you see
+      is really me: skin, skull, every fold of my brain, the inner ears and even the veins. None of it is a textbook model.</p>
     <h4>Getting around</h4>
     <ul>
       <li><b>Rotate:</b> drag with the left mouse button (or one finger)</li>
       <li><b>Move:</b> drag with the right mouse button (or two fingers)</li>
       <li><b>Zoom:</b> mouse wheel or pinch</li>
-      <li><b>Learn:</b> hover over any part to see its name and what it does; click it to keep the description on screen</li>
+      <li><b>Learn:</b> hover over anything to see what it is and what it does; click to keep the note on screen</li>
     </ul>
-    <h4>Start with the guided views</h4>
-    <p>The buttons at the top of the menu set up interesting scenes, like a see-through “glass head”, the brain split in half, or a virtual
-      cut through the middle. Then play with the sliders and checkboxes.</p>
+    <h4>Not sure where to start? Take the tour</h4>
+    <p><b>▶ Take the tour</b> walks you through it, from the raw scan to the inner ear. Pause, skip, or leave
+      with <span class="kbd">Esc</span> whenever you like. The <b>guided views</b> below it jump straight to one scene.</p>
     <h4>Tools</h4>
     <ul>
-      <li><b>Volume rendering</b> shows the raw scan as a 3D cloud. Move <i>Threshold</i> to peel away the faint layers.</li>
-      <li><b>Cut</b> slices the model open; <b>⇄</b> flips which half is removed.</li>
+      <li><b>Volume rendering</b> shows the raw scan as a glowing cloud. Move <i>Threshold</i> to peel off the outer layers.</li>
+      <li><b>Cut</b> slices the head open; <b>⇄</b> picks which half goes away.</li>
       <li><b>Ruler</b>: click two points to measure in millimetres. <span class="kbd">Esc</span> clears it.</li>
       <li><b>Split brain</b> pulls the two hemispheres apart.</li>
     </ul>
-    <p style="color:var(--muted)">This is a visualization for curiosity and education, not a diagnosis. Automatic segmentation makes mistakes.</p>
-    <div class="actions"><button class="primary" data-close>Start exploring</button></div>
+    <p style="color:var(--muted)">This is for curiosity, not a diagnosis. The algorithms are good but not perfect, so borders can be a millimetre or two off.</p>
+    <div class="actions"><button data-close>I’ll explore on my own</button><button class="primary" data-close id="help-tour">▶ Take the tour</button></div>
   </div>
 </div>
 
 <div class="modal" id="about">
   <div class="box">
-    <h2>How this was made</h2>
-    <p>A routine brain MRI (3&nbsp;Tesla Siemens Skyra, 23 series) was downloaded from a patient portal as DICOM, anonymized, and
-      processed with open-source research tools:</p>
+    <h2>How I made this</h2>
+    <p>I had a routine brain MRI (3&nbsp;Tesla Siemens Skyra, 23 series). The clinic’s portal only shows pictures, but its viewer
+      uses a hidden “download the whole study” function, so I called it directly and got the original DICOM files. I removed ID
+      numbers and dates from the headers and processed everything with free, open-source research tools:</p>
     <ul>
       <li><b>Brain regions:</b> FastSurfer (deep-learning segmentation, DKT atlas) on the 0.5&nbsp;mm T1 scan</li>
-      <li><b>Skull &amp; eyes:</b> SimNIBS <i>charm</i> (atlas-based head segmentation) on T1 + T2</li>
+      <li><b>Hypothalamus, cerebellar lobules, corpus callosum:</b> FastSurfer’s HypVINN, CerebNet and CC modules</li>
+      <li><b>Folded and inflated cortex:</b> SimNIBS TopoFit surfaces, inflated FreeSurfer-style</li>
+      <li><b>Skull &amp; eyes:</b> SimNIBS <i>charm</i> (atlas-based head segmentation) on T1 + T2, then split into bones</li>
+      <li><b>Optic nerves &amp; eye muscles:</b> traced through the orbit fat on the T1 scan</li>
       <li><b>Skin:</b> thresholding of the T1 scan</li>
-      <li><b>Inner ear:</b> fluid in the 0.3&nbsp;mm T2 SPACE scan</li>
-      <li><b>Veins:</b> Frangi vesselness filter on the SWI scan</li>
-      <li><b>Surfaces:</b> marching cubes, smoothing and decimation, about 3 million triangles in total</li>
+      <li><b>Inner ear:</b> fluid in the 0.3&nbsp;mm T2 SPACE scan, found automatically</li>
+      <li><b>Veins:</b> vesselness filter on the SWI scan, with the phase used to reject artefacts; sinuses from charm</li>
+      <li><b>3D meshes:</b> marching cubes, smoothing and Draco compression, about 4 million triangles in total</li>
     </ul>
-    <p>The viewer is a single HTML file using three.js. Source code, data and the full methodology are on GitHub.</p>
-    <h4>Honest limitations</h4>
+    <p>The viewer is a single HTML file using three.js. Source code, data and the full methodology are
+      <a href="https://github.com/volodymyrsmirnov/brain" target="_blank" rel="noopener">on GitHub</a>.</p>
+    <h4>Things that aren’t perfect</h4>
     <ul>
-      <li>Bone is dark on MRI, so the skull comes from an atlas-guided estimate, not a direct measurement.</li>
-      <li>Some vein fragments near the skull base are artefacts caused by air in the sinuses.</li>
-      <li>Automatic labels can be off by a few millimetres at region borders.</li>
+      <li>Bone is basically invisible on MRI (it shows up black), so the skull is estimated by an atlas-based model. The overall shape is right; fine details are approximate.</li>
+      <li>A few “veins” near the skull base are really artefacts from the air in my sinuses.</li>
+      <li>The eye muscles are roughly in the right places, but their exact shapes are approximate.</li>
+      <li>Automatic labels can be a few millimetres off at the borders.</li>
     </ul>
     <div class="actions"><button class="primary" data-close>Close</button></div>
   </div>
@@ -226,12 +300,13 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 const $ = id => document.getElementById(id);
-const DATA = 'data/';
+const DATA = new URLSearchParams(location.search).get('data') ?? 'data/';   // ?data=… only for testing other builds
 
 // ======================================================= plain-language info ==
 const LOBE_INFO = {
@@ -247,7 +322,7 @@ const REGION_INFO = {
   3: 'Contains the frontal eye fields that steer your gaze; also supports working memory.',
   5: 'Part of the primary visual area on the inner surface of the occipital lobe.',
   6: 'The gateway between the hippocampus and the rest of the cortex; home of “grid cells” used for navigation.',
-  7: 'Specialised for recognising faces and written words.',
+  7: 'Specialised for recognising faces and written words. It’s also why you sometimes see faces in random objects.',
   8: 'Language, arithmetic, and understanding other people’s actions.',
   9: 'Recognising objects by sight.',
   10: 'Links memory and spatial-navigation networks.',
@@ -275,15 +350,15 @@ const REGION_INFO = {
   34: 'Heschl’s gyrus: primary auditory cortex, where sound first arrives in the cortex.',
   35: 'Hidden inside a deep fold, it senses the body from within: heartbeat, hunger, pain, disgust.',
 };
-const INFO = {
-  skin: 'The outer surface of the head, reconstructed directly from the MRI.',
-  skull: 'Bone is almost invisible on MRI (it shows up dark), so this skull was estimated by an atlas-based model using two MRI contrasts. The shape is right; fine details are approximate.',
+const INFO = {   // by layer id without _L/_R
+  skin: 'The outside of my head, reconstructed straight from the MRI.',
+  skull: 'Bone is almost invisible on MRI (it shows up black), so this skull is estimated by an atlas-based model from two MRI contrasts. The overall shape is right; fine details are approximate.',
   eye: 'The eyeball. The fluid inside shows up clearly on MRI.',
   wm: 'White matter: the brain’s wiring. Billions of nerve fibres connect regions; their fatty insulation makes it look white.',
-  ventricles: 'Fluid-filled cavities that produce and circulate cerebrospinal fluid, which cushions the brain.',
+  ventricles: 'Fluid-filled cavities that make and circulate cerebrospinal fluid. The brain actually floats in it.',
   ventricle3: 'A narrow fluid-filled cavity in the midline, between the two thalami.',
   ventricle4: 'A fluid-filled cavity between the brainstem and the cerebellum.',
-  thalamus: 'The brain’s relay station: almost every sensory signal passes through it on the way to the cortex.',
+  thalamus: 'The brain’s switchboard: almost every sensory signal passes through here on its way to the cortex.',
   caudate: 'Part of the basal ganglia: learning, habits and goal-directed behaviour.',
   putamen: 'Part of the basal ganglia: controls movement and learning motor skills.',
   pallidum: 'Globus pallidus: the “brake and accelerator” for movement within the basal ganglia.',
@@ -292,19 +367,62 @@ const INFO = {
   accumbens: 'The reward centre: pleasure, motivation and craving.',
   ventraldc: 'Includes the hypothalamus, which controls hormones, hunger, thirst and body temperature.',
   brainstem: 'Connects the brain to the spinal cord and runs automatic functions: breathing, heart rate, sleep.',
-  cerebellum: 'The “little brain”: coordinates movement, balance and timing. It holds more than half of all the brain’s neurons.',
+  cerebellum: 'The “little brain”: coordinates movement, balance and timing. It packs more than half of all the brain’s neurons into about a tenth of its volume.',
   cerebellum_wm: 'The white matter (wiring) inside the cerebellum.',
   ear: 'The inner ear. The snail-shaped cochlea turns sound into nerve signals; the three looping semicircular canals sense head rotation for balance. The whole thing is about 1 cm across.',
-  veins: 'Veins draining blood from the brain, extracted from a scan that is sensitive to deoxygenated blood (SWI).',
+  veins: 'Veins draining blood from the brain, extracted from a scan that is sensitive to oxygen-poor blood (SWI). They empty into the dural sinuses.',
+  sinuses: 'Dural sinuses: large channels between the layers of the brain’s tough outer membrane. They collect all the blood leaving the brain and drain it to the jugular veins in the neck. Their shape here is atlas-guided.',
 };
-function infoFor(L) {
-  if (L.group.startsWith('lobe_')) {
-    const code = +L.id.split('_')[2];
-    const lobe = L.group.slice(5);
-    return { text: REGION_INFO[code] ?? LOBE_INFO[lobe], meta: `${P.lobes[lobe]} · ${LOBE_INFO[lobe]}` };
+// New anatomy comes from label files whose exact names may vary, so match by name (first match wins).
+const NAME_INFO = [
+  [/optic chiasm/i, 'Where the two optic nerves meet. Half of each eye’s fibres cross here, so each side of the brain sees the opposite half of the world.'],
+  [/optic nerve/i, 'The cable from the eye to the brain: about a million nerve fibres carrying everything you see.'],
+  [/optic tract/i, 'Visual fibres travelling on from the optic chiasm to the thalamus, and from there to the visual cortex at the back.'],
+  [/mammillary/i, 'Two small bumps under the brain that relay memory signals arriving from the hippocampus through the fornix.'],
+  [/fornix/i, 'An arching cable of nerve fibres that carries memory signals from the hippocampus to the front of the brain.'],
+  [/anterior commissure/i, 'A small bundle of fibres crossing the midline, linking parts of the two temporal lobes, including smell areas.'],
+  [/pineal/i, 'A pea-sized gland that releases melatonin when it gets dark, helping set your sleep rhythm. Descartes thought it was the seat of the soul.'],
+  [/pituitary stalk|infundibulum/i, 'The thin stalk that hangs the pituitary gland from the hypothalamus and carries its hormone signals.'],
+  [/pituitary/i, 'The “master gland”: a pea-sized gland that releases hormones for growth, stress, thyroid and reproduction.'],
+  [/hypothalamus/i, 'A tiny control centre (about the size of an almond) for hormones, hunger, thirst, body temperature and sleep.'],
+  [/genu/i, 'The front bend of the corpus callosum, linking the two frontal lobes.'],
+  [/splenium/i, 'The thick back end of the corpus callosum, linking the visual areas of the two hemispheres.'],
+  [/corpus callosum.*body|body.*corpus callosum/i, 'The middle part of the corpus callosum, linking movement and touch areas of both sides.'],
+  [/corpus callosum/i, 'The bridge between the hemispheres: about 200 million nerve fibres that let the two halves share information.'],
+  [/nodulus|vermis/i, 'The vermis (“worm”) is the cerebellum’s midline strip. It keeps your posture, balance and eye movements steady.'],
+  [/flocculus/i, 'A small flap of the cerebellum that works with the inner ear to keep your eyes steady when your head moves.'],
+  [/crus/i, 'Crus I and II: the large outer lobules of the cerebellum, used for thinking and language as much as for movement.'],
+  [/lobule|cerebell/i, 'One of the cerebellum’s lobules. Its folds are numbered I to X from front to back, each tuned to different body parts and skills.'],
+  [/skull base|base of (the )?skull/i, 'The floor of the skull that the brain rests on, full of small holes where nerves and blood vessels pass through.'],
+  [/cranium|calvari|braincase|skull cap/i, 'The braincase: curved plates of bone, joined by wavy seams, that protect the brain.'],
+  [/mandible|jaw/i, 'The lower jaw: the only skull bone that moves. Chewing, talking, yawning: all this one.'],
+  [/facial|maxilla|zygom|nasal|\bface\b/i, 'The bones of the face: cheekbones, upper jaw, the nose and the eye sockets.'],
+  [/vertebrae/i, 'The neck bones below the atlas. The top one, C2 (the “axis”), has an upward peg that is the pivot for turning your head to say “no”.'],
+  [/\bC1\b|\batlas\b/i, 'C1, the “atlas”: a ring of bone that carries the skull and lets you nod “yes”.'],
+  [/\bC2\b|\baxis\b/i, 'C2, the “axis”: its upward peg is the pivot that lets your head turn to say “no”.'],
+  [/vertebra|cervical|spine/i, 'The top bones of the spine, in the neck. The first two (atlas and axis) let your head nod and turn.'],
+  [/rectus.*levator|levator.*rectus/i, 'The top straight eye muscle, which turns the eye upward, together with the muscle just above it that lifts the upper eyelid.'],
+  [/rectus/i, 'A straight eye muscle. Four of them turn the eye up, down, left and right with remarkable precision.'],
+  [/oblique/i, 'A slanted eye muscle that rotates the eye and helps it look down or up while turned inward.'],
+  [/levator/i, 'The muscle that lifts your upper eyelid.'],
+  [/eye muscle|extraocular|muscle/i, 'Six tiny muscles per eye steer your gaze with incredible precision, so both eyes always point at the same thing.'],
+];
+let P;   // manifest
+function infoFor(L, code) {
+  if (L.type === 'surface') {
+    const R = P.regions?.[code];
+    if (!R) return { text: 'The inner wall where the two halves of the brain meet. No region is assigned here.', meta: '' };
+    return { text: REGION_INFO[code] ?? LOBE_INFO[R.lobe] ?? '', meta: `${P.lobes[R.lobe]} · ${LOBE_INFO[R.lobe]}` };
   }
+  if (L.lobe) return { text: REGION_INFO[L.code] ?? LOBE_INFO[L.lobe], meta: `${P.lobes[L.lobe]} · ${LOBE_INFO[L.lobe]}` };
   const key = L.id.replace(/_[LR]$/, '');
-  return { text: INFO[key] ?? INFO[key.split('_')[0]] ?? '', meta: '' };
+  const text = INFO[key] ?? NAME_INFO.find(([re]) => re.test(L.name))?.[1] ?? INFO[key.split('_')[0]] ?? groupOf(L)?.info ?? '';
+  return { text, meta: '' };
+}
+function nameFor(L, code) {
+  if (L.type !== 'surface') return L.name;
+  const R = P.regions?.[code];
+  return R ? `${R.name} (${L.hemi})` : L.name;
 }
 
 // ================================================================ loading ==
@@ -314,22 +432,33 @@ async function inflate(buf) {
   const ds = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
   return await new Response(ds).arrayBuffer();
 }
-const P = await (await fetch(DATA + 'manifest.json')).json();
-const totalBytes = P.layers.reduce((s, L) => s + L.bytes, 0) + 4e6;
-let loadedBytes = 0;
-const bump = n => {
-  loadedBytes += n;
-  const f = Math.min(1, loadedBytes / totalBytes);
-  $('load-fill').style.width = (f * 100).toFixed(1) + '%';
-  $('load-text').textContent = `Loading 3D model… ${(loadedBytes / 1e6).toFixed(0)} / ${(totalBytes / 1e6).toFixed(0)} MB`;
-};
-async function fetchBin(file) {
+async function fetchOnce(file, onBytes) {         // fetch with streaming progress
   const r = await fetch(DATA + file);
   if (!r.ok) throw new Error(`${file}: HTTP ${r.status}`);
-  const buf = await r.arrayBuffer(); bump(buf.byteLength);
-  return inflate(buf);
+  if (!r.body) { const b = await r.arrayBuffer(); onBytes(b.byteLength); return b; }
+  const reader = r.body.getReader(), chunks = []; let n = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); n += value.length; onBytes(value.length); }
+  const out = new Uint8Array(n); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out.buffer;
 }
-const [volBuf, ...meshBufs] = await Promise.all([fetchBin(P.volume.file), ...P.layers.map(L => fetchBin(L.file))]);
+async function fetchBuf(file, onBytes = () => {}) {   // retry flaky connections (mobile networks)
+  for (let k = 0, got = 0; ; k++) {
+    try { return await fetchOnce(file, n => { got += n; onBytes(n); }); }
+    catch (e) { if (k >= 3) throw e; onBytes(-got); got = 0; await new Promise(r => setTimeout(r, 500 * 2 ** k)); }
+  }
+}
+P = await (await fetch(DATA + 'manifest.json')).json();
+const groupOf = L => P.groups.find(g => g.key === L.group);
+
+// 1) the volume first: it is the opening view
+{
+  const total = P.volume.bytes ?? 6e6; let got = 0;
+  var volBuf = await inflate(await fetchBuf(P.volume.file, n => {
+    got += n; const f = Math.min(1, got / total);
+    $('load-fill').style.width = (f * 100).toFixed(1) + '%';
+    $('load-text').textContent = `Loading my head… ${(got / 1e6).toFixed(1)} / ${(total / 1e6).toFixed(1)} MB`;
+  }));
+}
 
 // ================================================================== scene ==
 const canvas = $('c');
@@ -353,29 +482,13 @@ world.add(root);
 const clipPlane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
 let clipOn = false;
 
-// ================================================================= meshes ==
-const DEFAULT_OPACITY = { skin: 0.18, skull: 0.45 };
+// ================================================== layers (meshes arrive later) ==
 let aoWanted = true, aoActive = false, vrBox = null;
-const items = [];
-P.layers.forEach((L, i) => {
-  const buf = meshBufs[i];
-  const q = new Int16Array(buf, 0, L.verts * 3);
-  const pos = new Float32Array(q.length); for (let k = 0; k < q.length; k++) pos[k] = q[k] * 0.01;
-  const idx = new Uint32Array(buf.slice(L.verts * 6));
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setIndex(new THREE.BufferAttribute(idx, 1));
-  g.computeVertexNormals(); g.computeBoundsTree();
-  const mat = new THREE.MeshStandardMaterial({ color: L.color, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
-  const mesh = new THREE.Mesh(g, mat);
-  mesh.renderOrder = L.group === 'head' ? 2 : 0;
-  root.add(mesh);
-  const it = { L, mesh, mat, base: DEFAULT_OPACITY[L.id] ?? 1, groupOpacity: 1, on: false };
-  mesh.userData.item = it;
-  items.push(it);
-});
+let inflateT = 0, surfColors = 'regions', explodeD = 0;
+const items = P.layers.map(L => ({ L, mesh: null, mat: null, base: L.opacity ?? 1, groupOpacity: 1, on: false }));
 const byId = id => items.find(it => it.L.id === id);
 function applyItem(it) {
+  if (!it.mesh) return;
   const op = it.base * it.groupOpacity;
   it.mesh.visible = it.on && op > 0.001;
   it.mat.opacity = op; it.mat.transparent = op < 1; it.mat.depthWrite = op >= 1;
@@ -385,37 +498,33 @@ function applyItem(it) {
 }
 
 // =========================================================== layer panel ==
-const stripHemi = s => s.replace(/ \((L|R)\)$/, '');
-const GROUPS = [
-  { key: 'head', title: 'Head', match: L => L.group === 'head', by: L => L.id.replace(/_[LR]$/, '') },
-  { key: 'cortex', title: 'Cortex (by lobe)', match: L => L.group.startsWith('lobe_'), by: L => L.group, label: k => P.lobes[k.slice(5)] },
-  { key: 'deep', title: 'Deep structures', match: L => L.group === 'deep', by: L => L.id.replace(/_[LR]$/, '') },
-  { key: 'cerebellum', title: 'Cerebellum', match: L => L.group === 'cerebellum', by: L => L.id.replace(/_[LR]$/, '') },
-  { key: 'ear', title: 'Inner ear', match: L => L.group === 'ear', by: L => L.id },
-  { key: 'vessels', title: 'Veins', match: L => L.group === 'vessels', by: L => L.id },
-];
+const stripHemi = s => s.replace(/ \((L|R)( half)?\)$/, '');
 const groupItems = {}, rowItems = [];
 const layersEl = $('layers');
-for (const G of GROUPS) {
-  const its = items.filter(it => G.match(it.L));
+for (const G of [...P.groups].sort((a, b) => a.order - b.order)) {
+  const its = items.filter(it => it.L.group === G.key);
   if (!its.length) continue;
   groupItems[G.key] = its;
   const det = document.createElement('details'); det.dataset.group = G.key;
   const sum = document.createElement('summary');
-  sum.innerHTML = `<span class="arrow">▸</span><label><input type="checkbox"> ${G.title}</label>`;
+  sum.innerHTML = `<span class="arrow">▸</span><label><input type="checkbox"> <span></span></label>`;
+  sum.querySelector('label span').textContent = G.title;
+  if (G.info) sum.title = G.info;
   det.appendChild(sum);
   const gcb = sum.querySelector('input');
   gcb.addEventListener('click', e => e.stopPropagation());
+  if (G.info) { const gi = document.createElement('div'); gi.className = 'ginfo'; gi.textContent = G.info; det.appendChild(gi); }
   const op = document.createElement('div'); op.className = 'op';
   op.innerHTML = `<span>opacity</span><input type="range" min="0" max="100" value="100">`;
   det.appendChild(op);
   op.querySelector('input').addEventListener('input', e => { for (const it of its) { it.groupOpacity = e.target.value / 100; applyItem(it); } });
   const rows = new Map();
-  for (const it of its) { const k = G.by(it.L); if (!rows.has(k)) rows.set(k, []); rows.get(k).push(it); }
-  for (const [k, list] of rows) {
+  for (const it of its) { const k = it.L.row ?? it.L.id.replace(/_[LR]$/, ''); if (!rows.has(k)) rows.set(k, []); rows.get(k).push(it); }
+  for (const [, list] of rows) {
     const r = document.createElement('div'); r.className = 'row';
-    const name = G.label ? G.label(k) : stripHemi(list[0].L.name);
-    r.innerHTML = `<label><input type="checkbox"><span class="sw" style="background:${list[0].L.color}"></span>${name}</label>`;
+    r.innerHTML = `<label><input type="checkbox"><span class="sw"></span><span></span></label>`;
+    r.querySelector('.sw').style.background = list[0].L.color;
+    r.querySelector('label span:last-child').textContent = list[0].L.rowName ?? stripHemi(list[0].L.name);
     const cb = r.querySelector('input');
     cb.addEventListener('change', () => { for (const it of list) { it.on = cb.checked; applyItem(it); } syncGroups(); });
     rowItems.push({ list, cb });
@@ -436,15 +545,19 @@ function setGroupOpacity(key, v) {
 }
 
 // ========================================================= centre + views ==
-root.updateMatrixWorld(true);
-const bb = new THREE.Box3().setFromObject((byId('skin') ?? items[0]).mesh);
-world.position.copy(bb.getCenter(new THREE.Vector3())).negate();
-const size0 = bb.getSize(new THREE.Vector3());
+// RAS -> three.js: (x, y, z) -> (-x, z, y)
+const ras2three = a => new THREE.Vector3(-a[0], a[2], a[1]);
+const V = P.volume, [nx, ny, nz] = V.dims, o = V.origin;
+const bCentre = P.bounds?.center ?? [o[0] + nx / 2, o[1] + ny / 2, o[2] + nz / 2];
+const bSize = P.bounds?.size ?? [nx, ny, nz];
+world.position.copy(ras2three(bCentre)).negate();
+const size0 = new THREE.Vector3(bSize[0], bSize[2], bSize[1]);
 const D = size0.length() * 1.9;
 const VIEWS = { front:[0,0,1], back:[0,0,-1], left:[1,0,0], right:[-1,0,0], top:[0,1,0.001], bottom:[0,-1,0.001], hero:[0.55,0.22,0.8] };
 
 let anim = null;
-function flyTo(pos, target = new THREE.Vector3(), ms = 900) {
+const flightMs = () => story.on ? 2200 : 900;
+function flyTo(pos, target = new THREE.Vector3(), ms = flightMs()) {
   anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), ms };
 }
 function viewDir(dir, dist = D, target = new THREE.Vector3()) {
@@ -453,23 +566,39 @@ function viewDir(dir, dist = D, target = new THREE.Vector3()) {
 }
 function frame(pred, dir, zoom = 1) {
   const box = new THREE.Box3();
-  items.filter(it => pred(it.L)).forEach(it => box.expandByObject(it.mesh));
+  items.filter(it => it.mesh && pred(it.L)).forEach(it => box.expandByObject(it.mesh));
+  if (box.isEmpty()) return viewDir(dir);
   const c = box.getCenter(new THREE.Vector3());
   viewDir(dir, Math.max(box.getSize(new THREE.Vector3()).length() * 1.7 * zoom, 45), c);
 }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => viewDir(VIEWS[b.dataset.view], D, controls.target.clone())));
 camera.position.set(...VIEWS.hero).multiplyScalar(D);
 
-// ================================================================ explode ==
-function setExplode(d) {
-  $('explode').value = d;
-  for (const it of items) {
-    const g = it.L.group;
-    if (!(g.startsWith('lobe_') || g === 'deep' || g === 'cerebellum')) continue;
-    it.mesh.position.x = it.L.hemi === 'R' ? d : it.L.hemi === 'L' ? -d : 0;   // RAS x
-  }
+// ======================================================= explode + inflate ==
+function placeItem(it) {
+  if (!it.mesh || !groupOf(it.L)?.explode) return;
+  it.mesh.position.x = it.L.hemi === 'R' ? explodeD : it.L.hemi === 'L' ? -explodeD : 0;   // RAS x
 }
+function setExplode(d) { explodeD = d; $('explode').value = d; items.forEach(placeItem); }
 $('explode').addEventListener('input', e => setExplode(+e.target.value));
+
+const surfItems = () => items.filter(it => it.L.type === 'surface');
+function setInflate(t) {
+  inflateT = t; $('inflate').value = Math.round(t * 100);
+  for (const it of surfItems()) if (it.mesh) it.mesh.morphTargetInfluences[0] = t;
+}
+function setSurfColors(mode) {
+  surfColors = mode;
+  $('sc-regions').classList.toggle('on', mode === 'regions'); $('sc-folds').classList.toggle('on', mode === 'folds');
+  for (const it of surfItems()) if (it.mesh) paintSurface(it);
+}
+$('inflate').addEventListener('input', e => {
+  if (!surfItems().some(it => it.on)) { for (const it of surfItems()) { it.on = true; applyItem(it); } syncGroups(); }
+  setInflate(e.target.value / 100);
+});
+$('sc-regions').addEventListener('click', () => setSurfColors('regions'));
+$('sc-folds').addEventListener('click', () => setSurfColors('folds'));
+$('surf-tools').hidden = !surfItems().length;
 
 // ================================================================= clip ==
 let flip = 1;
@@ -493,8 +622,10 @@ $('clip-pos').addEventListener('input', applyClip);
 $('clip-flip').addEventListener('click', () => { flip *= -1; applyClip(); });
 
 // =================================================== MRI slices + volume ==
-const V = P.volume, [nx, ny, nz] = V.dims, o = V.origin;
 const vol = new Uint8Array(volBuf);                 // index = x + nx*(y + ny*z), RAS axes, 1 mm
+if (V.encoding === 'delta-x') {                     // undo the per-row delta coding (wraps mod 256)
+  for (let r = 0, n = ny * nz; r < n; r++) { let acc = 0; for (let i = r * nx, e = i + nx; i < e; i++) { acc = (acc + vol[i]) & 255; vol[i] = acc; } }
+}
 const at = (x,y,z) => vol[x + nx*(y + ny*z)];
 function sliceTex(axis, i) {
   let w, h, get;
@@ -602,14 +733,14 @@ composer.addPass(gtao);
 composer.addPass(new OutputPass());
 // AO darkens translucent layers into mud, so it only runs when everything visible is opaque.
 function updateAO() {
-  aoActive = aoWanted && !clipOn && !vrBox?.visible && !items.some(it => it.mesh.visible && it.mat.opacity < 1);
+  aoActive = aoWanted && !clipOn && !vrBox?.visible && !items.some(it => it.mesh?.visible && it.mat.opacity < 1);
 }
 $('ao-btn').addEventListener('click', e => { aoWanted = !aoWanted; e.target.classList.toggle('on', aoWanted); updateAO(); });
 
 // ============================================================ auto-rotate ==
 function setRotate(on) { controls.autoRotate = on; $('rotate-btn').classList.toggle('on', on); }
 $('rotate-btn').addEventListener('click', () => setRotate(!controls.autoRotate));
-controls.addEventListener('start', () => { anim = null; setRotate(false); });
+controls.addEventListener('start', () => { anim = null; setRotate(false); if (story.on && !story.paused) storyPause(true); });
 
 // ================================================================ caption ==
 function caption(title, text, meta = '') {
@@ -619,18 +750,129 @@ function caption(title, text, meta = '') {
 }
 $('cap-x').addEventListener('click', () => caption(null));
 
+// ============================================ meshes: background Draco loading ==
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+draco.setDecoderConfig({ type: 'wasm' });
+const decode = (buf, ids, types) => new Promise((res, rej) => draco.decodeDracoFile(buf, res, ids, types, THREE.LinearSRGBColorSpace, rej));
+const SURF_TYPES = { position: 'Float32Array', morph: 'Uint16Array', dkt: 'Uint8Array', sulc: 'Uint8Array' };
+const C_UNKNOWN = new THREE.Color('#8b8580');
+function paintSurface(it) {
+  const g = it.mesh.geometry, { dkt, sulc } = it.mesh.userData, col = g.getAttribute('color').array;
+  const pal = {}; for (const [k, R] of Object.entries(P.regions ?? {})) pal[k] = new THREE.Color(R.color);
+  const c = new THREE.Color();
+  for (let i = 0; i < dkt.length; i++) {
+    const s = (sulc[i] - 128) / 127;                 // +1 = deep in a fold, -1 = top of a ridge
+    if (surfColors === 'folds') c.setRGB(0.62 - 0.3 * s, 0.6 - 0.3 * s, 0.58 - 0.3 * s, THREE.SRGBColorSpace);
+    else c.copy(pal[dkt[i]] ?? C_UNKNOWN).multiplyScalar(Math.min(1.15, Math.max(0.55, 1 - 0.35 * s)));
+    col[3 * i] = c.r; col[3 * i + 1] = c.g; col[3 * i + 2] = c.b;
+  }
+  g.getAttribute('color').needsUpdate = true;
+}
+function buildMesh(it, g) {
+  const L = it.L;
+  let mat;
+  if (L.type === 'surface') {
+    const n = g.getAttribute('position').count;
+    const q = g.getAttribute('morph').array, { origin, step } = L.morph;
+    const mp = new Float32Array(n * 3);
+    for (let i = 0; i < n * 3; i++) mp[i] = origin[i % 3] + q[i] * step;
+    const dkt = g.getAttribute('dkt').array, sulc = g.getAttribute('sulc').array;
+    g.deleteAttribute('morph'); g.deleteAttribute('dkt'); g.deleteAttribute('sulc');
+    g.computeVertexNormals();
+    const tmp = new THREE.BufferGeometry(); tmp.setIndex(g.index); tmp.setAttribute('position', new THREE.BufferAttribute(mp, 3));
+    tmp.computeVertexNormals();
+    g.morphAttributes.position = [tmp.getAttribute('position')];
+    g.morphAttributes.normal = [tmp.getAttribute('normal')];
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, metalness: 0, side: THREE.DoubleSide });
+    it.mesh = new THREE.Mesh(g, mat);
+    it.mesh.userData = { dkt, sulc, morphPos: mp };
+    it.mesh.morphTargetInfluences[0] = inflateT;
+    paintSurface(it);
+  } else {
+    g.computeVertexNormals();
+    mat = new THREE.MeshStandardMaterial({ color: L.color, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
+    it.mesh = new THREE.Mesh(g, mat);
+  }
+  g.computeBoundsTree();
+  it.mat = mat;
+  it.mesh.renderOrder = (L.group === 'head' || L.group === 'bones') ? 2 : 0;
+  it.mesh.userData.item = it;
+  root.add(it.mesh);
+  placeItem(it); applyItem(it);
+}
+let meshesDone = false, meshPct = 0;
+const meshesReady = (async () => {
+  $('mesh-load').hidden = false;
+  const total = P.layers.reduce((s, L) => s + L.bytes, 0);
+  let fetched = 0, built = 0, failed = 0;
+  const progress = () => {
+    meshPct = Math.round(100 * (0.6 * fetched + 0.4 * built) / total);
+    $('mesh-load').style.setProperty('--p', meshPct);
+    $('mesh-load-text').textContent = `Loading 3D models… ${meshPct}%`;
+    if (waitingFor) $('cap-meta').textContent = `Loading 3D models… ${meshPct}%`;
+  };
+  // Fetch in manifest order (head first) with a few parallel requests; Draco decodes in web workers.
+  const queue = [...items]; const jobs = [];
+  const worker = async () => {
+    for (let it; (it = queue.shift());) {
+      try {
+        const buf = await fetchBuf(it.L.file, n => { fetched += n; progress(); });
+        const g = it.L.type === 'surface' ? await decode(buf, it.L.attributes, SURF_TYPES) : await decode(buf);
+        buildMesh(it, g);
+      } catch (e) { console.error('layer', it.L.id, e); failed++; }   // one bad layer must not stop the rest
+      built += it.L.bytes; progress();
+    }
+  };
+  for (let k = 0; k < 6; k++) jobs.push(worker());
+  await Promise.all(jobs);
+  meshesDone = true; performance.mark('mri:meshes-ready');
+  if (failed) { $('mesh-load-text').textContent = `${failed} part${failed > 1 ? 's' : ''} could not be loaded`; return; }
+  $('mesh-load-text').textContent = '3D models ready';
+  $('mesh-load').classList.add('done'); setTimeout(() => $('mesh-load').hidden = true, 600);
+})().catch(e => { console.error(e); $('mesh-load-text').textContent = 'Could not load the 3D models'; throw e; });
+
 // ===================================================== picking: hover/click ==
 const ray = new THREE.Raycaster(); ray.firstHitOnly = true;
 const mouse = new THREE.Vector2();
 const tip = $('tip');
+// Surfaces are morphed on the GPU; for picking an inflated surface we keep a CPU copy at the same blend.
+function pickTarget(it) {
+  if (it.L.type !== 'surface' || inflateT === 0) return it.mesh;
+  const u = it.mesh.userData;
+  if (!u.proxy) {
+    const g = new THREE.BufferGeometry(); g.setIndex(new THREE.BufferAttribute(it.mesh.geometry.index.array.slice(), 1));   // own copy: the BVH reorders it
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(u.morphPos.length), 3));
+    u.proxy = new THREE.Mesh(g, it.mat); u.proxy.visible = false; u.proxy.userData.item = it; u.proxyT = -1;
+    it.mesh.add(u.proxy); u.proxy.updateMatrixWorld(true);   // not rendered, so make its matrix valid right away
+  }
+  if (u.proxyT !== inflateT) {
+    const a = it.mesh.geometry.getAttribute('position').array, b = u.morphPos, p = u.proxy.geometry.getAttribute('position');
+    for (let i = 0; i < a.length; i++) p.array[i] = a[i] + (b[i] - a[i]) * inflateT;
+    p.needsUpdate = true; u.proxy.geometry.computeBoundingSphere();
+    if (u.proxy.geometry.boundsTree) u.proxy.geometry.boundsTree.refit(); else u.proxy.geometry.computeBoundsTree();
+    u.proxyT = inflateT;
+  }
+  return u.proxy;
+}
 function pick(ev) {
   const r = canvas.getBoundingClientRect();
   mouse.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const vis = items.filter(it => it.mesh.visible && it.mat.opacity > 0.3).map(it => it.mesh);
+  const vis = items.filter(it => it.mesh?.visible && it.mat.opacity > 0.3).map(pickTarget);
   let hits = ray.intersectObjects(vis, false);
   if (clipOn) hits = hits.filter(h => clipPlane.distanceToPoint(h.point) >= 0);
-  return hits[0];
+  const h = hits[0];
+  if (!h) return null;
+  const it = h.object.userData.item;
+  let code;
+  if (it.L.type === 'surface') {   // nearest corner of the hit triangle -> its DKT region
+    const pos = h.object.geometry.getAttribute('position'), lp = h.object.worldToLocal(h.point.clone()), v = new THREE.Vector3();
+    let best = Infinity;
+    for (const i of [h.face.a, h.face.b, h.face.c]) { const d = v.fromBufferAttribute(pos, i).distanceToSquared(lp); if (d < best) { best = d; code = it.mesh.userData.dkt[i]; } }
+  }
+  return { ...h, it, L: it.L, code };
 }
 let rulerOn = false, pts = [], hoverPending = false;
 canvas.addEventListener('pointermove', ev => {
@@ -640,10 +882,9 @@ canvas.addEventListener('pointermove', ev => {
     hoverPending = false;
     const h = pick(ev);
     if (h) {
-      const L = h.object.userData.item.L;
       tip.replaceChildren();
-      const b = document.createElement('b'); b.textContent = L.name; tip.appendChild(b);
-      const txt = infoFor(L).text;
+      const b = document.createElement('b'); b.textContent = nameFor(h.L, h.code); tip.appendChild(b);
+      const txt = infoFor(h.L, h.code).text;
       if (txt) { const sp = document.createElement('span'); sp.textContent = txt; tip.appendChild(sp); }
       tip.style.display = 'block';
       // keep the tooltip on screen
@@ -662,7 +903,6 @@ const rulerMat = new THREE.MeshBasicMaterial({ color: 0x7aa2ff, depthTest: false
 const rl = $('ruler-label');
 function clearRuler() { rulerGroup.clear(); pts = []; rl.style.display = 'none'; }
 $('ruler-btn').addEventListener('click', e => { rulerOn = !rulerOn; e.target.classList.toggle('on', rulerOn); if (!rulerOn) clearRuler(); });
-addEventListener('keydown', e => { if (e.key === 'Escape') { clearRuler(); caption(null); document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); } });
 let downAt = null;
 canvas.addEventListener('pointerdown', ev => downAt = [ev.clientX, ev.clientY]);
 canvas.addEventListener('pointerup', ev => {
@@ -670,8 +910,9 @@ canvas.addEventListener('pointerup', ev => {
   const h = pick(ev);
   if (!rulerOn) {                                   // click = explain this structure
     if (!h) return;
-    const L = h.object.userData.item.L, inf = infoFor(L);
-    caption(L.name, inf.text, inf.meta);
+    if (story.on) storyPause(true);
+    const inf = infoFor(h.L, h.code);
+    caption(nameFor(h.L, h.code), inf.text, inf.meta);
     return;
   }
   if (!h) return;
@@ -696,75 +937,202 @@ function placeRulerLabel() {
 }
 
 // ========================================================== guided views ==
-const isCortex = L => L.group.startsWith('lobe_');
+const inGroup = g => L => L.group === g;
+const isCortex = inGroup('cortex');
+const isSurf = L => L.type === 'surface';
+const isSkull = L => L.id === 'skull' || L.group === 'bones';
 const isBrain = L => isCortex(L) || (L.group === 'cerebellum' && !L.id.includes('wm')) || L.id === 'brainstem';
 const isDeep = L => L.group === 'deep' && !L.id.startsWith('wm');
+const isOptic = L => /optic|chiasm/i.test(L.name);
+const isFreeMode = L => L.visible ?? groupOf(L)?.visible ?? true;
+const has = pred => P.layers.some(pred);
+// Small timeline helpers; everything is cancelled when another view starts.
+let timers = [], tweens = [];
+function clearTimeline() { timers.forEach(clearTimeout); timers = []; tweens = []; }
+const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+function tween(ms, fn, delay = 0) { tweens.push({ start: performance.now() + delay, ms, fn }); }
+function runTweens(now) {
+  tweens = tweens.filter(tw => {
+    if (now < tw.start) return true;
+    const t = Math.min(1, (now - tw.start) / tw.ms); tw.fn(ease(t));
+    return t < 1;
+  });
+}
 function scene_({ show = () => false, opacity = {}, groupOpacity = {}, vr = { on: false }, clip = 'none', clipPos = 0,
-                  explode = 0, slices: sl = [], rotate = false }) {
+                  explode = 0, slices: sl = [], rotate = false, inflate = 0, colors = 'regions' }) {
   for (const k of Object.keys(groupItems)) setGroupOpacity(k, groupOpacity[k] ?? 1);
-  for (const it of items) { it.on = show(it.L); it.base = opacity[it.L.id] ?? DEFAULT_OPACITY[it.L.id] ?? 1; applyItem(it); }
+  for (const it of items) {
+    it.on = show(it.L);
+    it.base = (typeof opacity === 'function' ? opacity(it.L) : opacity[it.L.id]) ?? it.L.opacity ?? 1;
+    applyItem(it);
+  }
   syncGroups();
   setVR({ on: false, mode: 0, thr: 0.08, dens: 0.45, ...vr });
-  setExplode(explode);
+  setExplode(explode); setInflate(inflate); if (surfColors !== colors) setSurfColors(colors);
   $('clip-axis').value = clip; $('clip-pos').value = clipPos;
   for (const a of ['ax','cor','sag']) { const on = sl.includes(a); slices[a].visible = on; $('on-' + a).checked = on; }
   setRotate(rotate);
 }
+const stepMs = T => Math.min(12000, Math.max(8000, 4000 + ((T.story ?? T.text).length) * 38)) + (T.extraMs ?? 0);
+// Tours double as the steps of the story ("Take the tour"), in this order. `when` hides a view if its data is missing.
 const TOURS = [
-  { id: 'volume', ico: '☁️', name: 'MRI cloud', title: 'The raw scan, in 3D',
-    text: 'This is the MRI itself: millions of tiny measurements (voxels) shown as a glowing cloud. Drag “Threshold” in the menu to peel away faint layers and reveal what is underneath.',
+  { id: 'volume', ico: '☁️', name: 'MRI cloud', meshes: false, title: 'The raw scan, in 3D',
+    text: 'This is the MRI itself: millions of tiny measurements (voxels) shown as a glowing cloud. Drag “Threshold” in the menu to peel away the outer layers.',
+    story: 'Welcome inside my head. We start with the raw scan: millions of tiny measurements (voxels) shown as a glowing cloud. Everything else on this tour was computed from this data.',
     run: () => { scene_({ vr: { on: true }, rotate: true }); viewDir(VIEWS.hero); } },
-  { id: 'xray', ico: '🩻', name: 'X-ray', title: 'X-ray vision',
-    text: 'The same data rendered like an X-ray: every point along your line of sight adds a little light, so dense, bright tissue glows through everything else.',
+  { id: 'xray', ico: '🩻', name: 'X-ray', meshes: false, title: 'X-ray vision',
+    text: 'The same data, X-ray style: every point along your line of sight adds a little glow, so bright tissue shines through everything else.',
     run: () => { scene_({ vr: { on: true, mode: 1, thr: 0.12, dens: 0.5 }, rotate: true }); viewDir(VIEWS.front); } },
   { id: 'glass', ico: '🔮', name: 'Glass head', title: 'A see-through head',
-    text: 'The skin and skull made transparent, so you can see the brain sitting inside. The colours mark the brain’s lobes. Hover over anything to see its name.',
-    run: () => { scene_({ show: L => L.group === 'head' || isBrain(L) || L.group === 'ear', rotate: true }); viewDir(VIEWS.hero); } },
+    text: 'Skin and skull turned see-through, so you can see my brain sitting inside, coloured by lobe. Hover over anything to see its name.',
+    story: 'Software turned that cloud into surfaces. Here my skin and skull are see-through, so you can see the brain inside, coloured by lobe.',
+    run: () => { scene_({ show: L => L.group === 'head' || isSkull(L) || isBrain(L) || L.group === 'ear', rotate: true }); viewDir(VIEWS.hero); } },
   { id: 'skull', ico: '💀', name: 'Skull', title: 'The skull',
-    text: 'Bone is nearly invisible on MRI, so this skull was estimated by an atlas-based model (SimNIBS) from two different MRI contrasts. The overall shape is the real one.',
-    run: () => { scene_({ show: L => L.id === 'skull' || L.id.startsWith('eye_'), opacity: { skull: 1 }, rotate: true }); viewDir([0.5, 0.1, 0.85], D * 0.95); } },
+    text: has(inGroup('bones'))
+      ? 'Bone is nearly invisible on MRI, so my skull was estimated by an atlas-based model from two MRI contrasts. Hover to tell the braincase, face, jaw and neck bones apart.'
+      : 'Bone is nearly invisible on MRI, so my skull was estimated by an atlas-based model from two MRI contrasts. The overall shape is the real one.',
+    run: () => { scene_({ show: L => isSkull(L) || L.id.startsWith('eye_'), opacity: L => isSkull(L) ? 1 : undefined, rotate: true }); viewDir([0.5, 0.1, 0.85], D * 0.95); } },
+  { id: 'eyes', ico: '👁️', name: 'Eye to brain', title: 'From the eyes to the brain', when: () => has(L => L.group === 'eyes' || isOptic(L)),
+    text: 'Behind each eyeball, the optic nerve carries what I see towards the brain. The two nerves meet at the optic chiasm, where half of the fibres cross to the other side. Small muscles around each eye move it.',
+    run: () => { scene_({ show: L => L.id.startsWith('eye_') || L.group === 'eyes' || isOptic(L) || isCortex(L), groupOpacity: { cortex: 0.06 } });
+                 frame(L => L.id.startsWith('eye_') || L.group === 'eyes' || isOptic(L), [0.35, 0.55, 1], 1.5); } },
   { id: 'atlas', ico: '🗺️', name: 'Brain map', title: 'A map of the cortex',
-    text: 'The wrinkled outer layer, the cortex, divided into 62 regions, each with its own job. Click any region to read what it does.',
+    text: 'The wrinkly outer layer, the cortex, carved into 62 regions, each with its own job. Click any region to see what it does.',
     run: () => { scene_({ show: isBrain }); viewDir(VIEWS.left, D * 0.75); } },
+  { id: 'inflate', ico: '🎈', name: 'Unfold', title: 'Unfolding the cortex', when: () => has(isSurf), extraMs: 3000,
+    text: 'The cortex is a sheet about 3 mm thick, crumpled up to fit inside the skull. Inflate it like a balloon to see the hidden folds (darker = deeper groove). Try the “Inflate brain” slider yourself.',
+    run: () => { scene_({ show: isSurf, rotate: false }); viewDir(VIEWS.left, D * 0.8);
+                 tween(5000, k => setInflate(k), flightMs() + 600); } },
   { id: 'split', ico: '↔️', name: 'Split brain', title: 'Two hemispheres',
-    text: 'The left and right halves pulled apart. In a real brain they are joined by the corpus callosum, a bridge of about 200 million nerve fibres.',
-    run: () => { scene_({ show: L => isBrain(L) || isDeep(L), explode: 32 }); viewDir([0.15, 0.75, 1], D * 0.85); } },
-  { id: 'slice', ico: '🔪', name: 'Slice', title: 'A virtual cut',
-    text: 'The head sliced down the middle. The cut surface shows the actual MRI section: the brain, the corpus callosum, the brainstem, the tongue and the sinuses.',
-    run: () => { viewDir([1, 0.15, 0.25], D * 0.8); setTimeout(() => { scene_({ vr: { on: true, thr: 0.08, dens: 0.45 }, clip: 'x' }); autoFlip(); applyClip(); }, 950); } },
+    text: has(inGroup('cc'))
+      ? 'My left and right halves, pulled apart. The blue bridge left in the middle is the corpus callosum: about 200 million fibres connecting the two halves.'
+      : 'My left and right halves, pulled apart. Normally they are joined by the corpus callosum, about 200 million fibres connecting the two halves.',
+    run: () => { scene_({ show: L => isBrain(L) || isDeep(L) || L.group === 'cc' });
+                 if (story.on) tween(2500, k => setExplode(32 * k), 600); else setExplode(32);
+                 viewDir([0.15, 0.75, 1], D * 0.85); } },
   { id: 'deep', ico: '🌰', name: 'Deep inside', title: 'Hidden beneath the cortex',
-    text: 'Inside a glass brain: the fluid-filled ventricles (blue), the thalamus (the brain’s relay station) and the basal ganglia, which help control movement and habits.',
+    text: 'Inside a glass brain: the fluid-filled ventricles (blue), the thalamus (the brain’s switchboard) and the basal ganglia, which help control movement and habits.',
     run: () => { scene_({ show: L => isCortex(L) || isDeep(L), groupOpacity: { cortex: 0.05 }, rotate: true }); frame(isDeep, [0.6, 0.55, 1], 1.4); } },
   { id: 'memory', ico: '💭', name: 'Memory', title: 'Memory and emotion',
-    text: 'The hippocampus (yellow, curved like a seahorse) stores new memories; the amygdala (green, almond-shaped) gives them their emotional charge.',
-    run: () => { scene_({ show: L => isCortex(L) || /^(hippocampus|amygdala)/.test(L.id), groupOpacity: { cortex: 0.05 }, rotate: true });
+    text: has(L => /fornix|mammillary/i.test(L.name))
+      ? 'The hippocampus (yellow, curved like a seahorse) stores new memories; the amygdala (green, almond-shaped) adds the emotions. The fornix arches forward to the mammillary bodies, carrying memory signals.'
+      : 'The hippocampus (yellow, curved like a seahorse) stores new memories; the amygdala (green, almond-shaped) adds the emotions.',
+    run: () => { scene_({ show: L => isCortex(L) || /^(hippocampus|amygdala)/.test(L.id) || /fornix|mammillary/i.test(L.name), groupOpacity: { cortex: 0.05 }, rotate: true });
                  frame(L => /^(hippocampus|amygdala)/.test(L.id), [0.9, 0.5, 0.5], 2.6); } },
-  { id: 'ears', ico: '🐚', name: 'Inner ear', title: 'Hearing and balance',
-    text: 'Both inner ears, each about 1 cm across: the snail-shaped cochlea turns sound into nerve signals, and three looping canals sense head rotation to keep your balance.',
-    run: () => { scene_({ show: L => L.group === 'ear' }); frame(L => L.group === 'ear', [0, 1, 0.5], 1.05); } },
-  { id: 'veins', ico: '🩸', name: 'Veins', title: 'Veins of the brain',
-    text: 'Veins on the brain’s surface, found in a scan that is sensitive to oxygen-poor blood. The thick vessel along the midline is the superior sagittal sinus.',
+  { id: 'hypothalamus', ico: '🎛️', name: 'Control centre', title: 'The body’s control centre', when: () => has(inGroup('hypothalamus')),
+    text: 'At the base of the brain, the almond-sized hypothalamus runs hunger, thirst, temperature, sleep and hormones. The pituitary gland hangs just below it.',
+    run: () => { scene_({ show: L => isCortex(L) || L.group === 'hypothalamus' || /^(thalamus|ventricle3)/.test(L.id), groupOpacity: { cortex: 0.05 }, rotate: true });
+                 frame(inGroup('hypothalamus'), [0.8, 0.35, 0.9], 2.2); } },
+  { id: 'cerebellum', ico: '🌿', name: 'Little brain', title: 'The “little brain”', when: () => has(inGroup('cerebellum_lobules')),
+    text: 'The cerebellum fine-tunes every movement and holds more than half of all my neurons. Its folds are numbered lobules; the strip in the middle is the vermis (Latin for “worm”).',
+    run: () => { scene_({ show: L => L.group === 'cerebellum_lobules' || L.id === 'brainstem' || isCortex(L), groupOpacity: { cortex: 0.05 } });
+                 frame(inGroup('cerebellum_lobules'), [0.25, 0.3, -1], 1.3); } },
+  { id: 'ears', ico: '🐚', name: 'Inner ear', title: 'Hearing and balance', when: () => has(inGroup('ear')),
+    text: 'Both of my inner ears, each about 1 cm across. The snail-shaped cochlea turns sound into nerve signals; three looping canals sense head rotation for balance.',
+    run: () => { scene_({ show: inGroup('ear') }); frame(inGroup('ear'), [0, 1, 0.5], 1.05); } },
+  { id: 'veins', ico: '🩸', name: 'Veins', title: 'Veins of the brain', when: () => has(inGroup('vessels')),
+    text: has(L => L.id === 'sinuses')
+      ? 'Veins (blue) on my brain’s surface, from a scan that is sensitive to oxygen-poor blood. They drain into the dural sinuses (red): big channels like the one along the midline that carry it all down to the neck.'
+      : 'Veins on my brain’s surface, from a scan that is sensitive to oxygen-poor blood. The thick vessel along the midline is the superior sagittal sinus.',
     run: () => { scene_({ show: L => L.group === 'vessels' || isCortex(L), groupOpacity: { cortex: 0.07 } }); viewDir([0.3, 1, 0.35], D * 0.8); } },
-  { id: 'free', ico: '🧭', name: 'Free mode', title: 'Your turn',
-    text: 'Everything is switched on. Use the checkboxes, sliders and tools in the menu to build your own view.',
-    run: () => { scene_({ show: L => !L.id.startsWith('wm_') && !L.id.startsWith('cerebellum_wm') && L.id !== 'veins' }); viewDir(VIEWS.hero); } },
-];
+  { id: 'slice', ico: '🔪', name: 'Slice', title: 'A virtual cut', meshes: false, keepClip: true,
+    text: 'My head, sliced down the middle. The cut face is the real MRI section: brain, corpus callosum, brainstem, tongue and sinuses.',
+    story: 'To finish, let’s slice my head down the middle. The cut face is the real MRI section: brain, corpus callosum, brainstem, tongue and sinuses.',
+    run: () => { viewDir([1, 0.15, 0.25], D * 0.8); later(flightMs() + 50, () => { scene_({ vr: { on: true, thr: 0.08, dens: 0.45 }, clip: 'x' }); autoFlip(); applyClip(); }); } },
+  { id: 'free', ico: '🧭', name: 'Free mode', title: 'Your turn', inStory: false,
+    text: 'Everything is switched on. Play with the checkboxes, sliders and tools to build your own view.',
+    run: () => { scene_({ show: isFreeMode }); viewDir(VIEWS.hero); } },
+].filter(T => T.when?.() ?? true);
+{ // the button tells how long the story is
+  const min = Math.max(1, Math.round(TOURS.filter(T => T.inStory !== false).reduce((s, T) => s + stepMs(T) + 2200, 0) / 60000));
+  $('story-btn').querySelector('small').textContent = `A ${min}-minute guided tour, step by step`;
+}
 const tourEl = $('tours');
 for (const T of TOURS) {
   const b = document.createElement('button'); b.className = 'tour'; b.dataset.tour = T.id;
-  b.innerHTML = `<span class="ico">${T.ico}</span>${T.name}`;
-  b.addEventListener('click', () => startTour(T.id));
+  b.innerHTML = `<span class="ico">${T.ico}</span><span></span>`; b.lastChild.textContent = T.name;
+  b.addEventListener('click', () => { if (story.on) storyExit(); startTour(T.id); });
   tourEl.appendChild(b);
 }
-function startTour(id) {
-  const T = TOURS.find(t => t.id === id);
+let tourToken = 0, waitingFor = null;
+async function startTour(id) {
+  const T = TOURS.find(t => t.id === id), my = ++tourToken;
   document.querySelectorAll('.tour').forEach(b => b.classList.toggle('on', b.dataset.tour === id));
-  clearRuler();
+  clearRuler(); clearTimeline();
+  const text = (story.on && T.story) || T.text;
+  if (T.meshes !== false && !meshesDone) {          // the meshes are still streaming in: wait, politely
+    waitingFor = T; caption(T.title, text, `Loading 3D models… ${meshPct}%`);
+    await meshesReady; waitingFor = null;
+    if (my !== tourToken) return false;
+  }
   T.run();
-  if (T.id !== 'slice') applyClip();
-  caption(T.title, T.text);
+  if (!T.keepClip) applyClip();
+  caption(T.title, text);
   if (matchMedia('(max-width:700px)').matches) $('panel').classList.add('hidden');
+  return true;
 }
+
+// ============================================================= story mode ==
+const story = { on: false, i: 0, paused: false, t: 0, dur: 0, steps: [] };
+function storyUI() {
+  $('caption').classList.toggle('story', story.on);
+  $('story-count').textContent = `Step ${story.i + 1} of ${story.steps.length}`;
+  $('story-pause').textContent = story.paused ? '▶' : '⏸';
+  $('story-pause').title = story.paused ? 'Resume (Space)' : 'Pause (Space)';
+  $('story-prev').disabled = story.i === 0;
+}
+async function storyGo(i) {
+  story.i = Math.max(0, Math.min(story.steps.length - 1, i));
+  story.t = 0; story.dur = 0; story.paused = false; storyUI();
+  $('story-bar').style.width = '0';
+  const T = story.steps[story.i];
+  if (await startTour(T.id) && story.on && story.steps[story.i] === T) { story.dur = stepMs(T); storyUI(); }
+}
+function storyStart() {
+  document.activeElement?.blur?.();                 // so Space pauses the story instead of re-clicking the button
+  story.steps = TOURS.filter(T => T.inStory !== false);
+  story.on = true; $('panel').classList.toggle('hidden', matchMedia('(max-width:700px)').matches); resize();
+  storyGo(0);
+}
+function storyExit() {
+  if (!story.on) return;
+  story.on = false; story.dur = 0; storyUI();
+}
+function storyPause(p) {
+  story.paused = p; storyUI();
+  if (!p) { const T = story.steps[story.i]; caption(T.title, T.story ?? T.text); storyUI(); }   // back to the step after a click
+}
+function storyEnd() {
+  storyExit();
+  caption('That’s the tour!', 'Thanks for visiting my head. Now it’s your turn: rotate, zoom, hover over anything, or pick a guided view in the menu.');
+}
+$('story-btn').addEventListener('click', storyStart);
+$('help-tour').addEventListener('click', storyStart);
+$('story-prev').addEventListener('click', () => storyGo(story.i - 1));
+$('story-next').addEventListener('click', () => story.i + 1 < story.steps.length ? storyGo(story.i + 1) : storyEnd());
+$('story-pause').addEventListener('click', () => storyPause(!story.paused));
+$('story-exit').addEventListener('click', () => { storyExit(); caption(null); });
+let lastNow = performance.now();
+function storyTick(now) {
+  const dt = Math.min(100, now - lastNow); lastNow = now;   // no jumps after the tab was in the background
+  if (!story.on || story.paused || !story.dur) return;
+  story.t += dt;
+  $('story-bar').style.width = Math.min(100, 100 * story.t / story.dur).toFixed(2) + '%';
+  if (story.t >= story.dur) story.i + 1 < story.steps.length ? storyGo(story.i + 1) : storyEnd();
+}
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const modal = document.querySelector('.modal.show');
+    document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    if (modal) return;
+    if (story.on) { storyExit(); caption(null); return; }
+    clearRuler(); caption(null);
+  }
+  if (!story.on || e.repeat || e.target.closest?.('input, select, textarea')) return;
+  if (e.key === ' ' && !e.target.closest?.('button, a, summary')) { e.preventDefault(); storyPause(!story.paused); }
+  if (e.key === 'ArrowRight') story.i + 1 < story.steps.length ? storyGo(story.i + 1) : storyEnd();
+  if (e.key === 'ArrowLeft') storyGo(story.i - 1);
+});
 
 // ================================================================ modals ==
 const openModal = id => $(id).classList.add('show');
@@ -793,17 +1161,22 @@ const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 startTour('volume');
 camera.position.set(...VIEWS.hero).multiplyScalar(D * 1.6); anim.p0.copy(camera.position);
 $('loading').remove();
+performance.mark('mri:first-view');
 let seen = false; try { seen = localStorage.getItem('mri-explorer-seen') === '1'; localStorage.setItem('mri-explorer-seen', '1'); } catch {}
 if (!seen) openModal('help');
-window.viewer = { scene, camera, controls, items, startTour };
+window.viewer = { THREE, scene, camera, controls, items, startTour, story, storyStart, storyGo, storyExit, setInflate, setSurfColors,
+                  setExplode, meshesReady, infoFor, pick: (x, y) => pick({ clientX: x, clientY: y }) };
 
 renderer.setAnimationLoop(() => {
+  const now = performance.now();
   if (anim) {
-    const t = Math.min(1, (performance.now() - anim.start) / anim.ms), k = ease(t);
+    const t = Math.min(1, (now - anim.start) / anim.ms), k = ease(t);
     camera.position.lerpVectors(anim.p0, anim.p1, k);
     controls.target.lerpVectors(anim.t0, anim.t1, k);
     if (t >= 1) anim = null;
   }
+  runTweens(now);
+  storyTick(now);
   controls.update();
   if (vrBox.visible) {
     inv.copy(vrBox.matrixWorld).invert();

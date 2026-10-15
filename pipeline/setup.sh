@@ -9,18 +9,18 @@ echo "== system packages (Homebrew)"
 brew install dcm2niix mpfr gmp git-lfs uv
 
 echo "== main Python env (.venv)"
-uv venv -q -p 3.12 .venv
+uv venv -q --allow-existing -p 3.12 .venv
 VIRTUAL_ENV=.venv uv pip install -q -r pipeline/requirements.txt
 
 mkdir -p tools
 echo "== FastSurfer v2.6.0 (brain segmentation; seg-only mode needs no FreeSurfer licence)"
 [ -d tools/FastSurfer ] || git clone -q --depth 1 --branch v2.6.0 https://github.com/Deep-MI/FastSurfer.git tools/FastSurfer
-uv venv -q -p 3.12 tools/venv-fastsurfer
+uv venv -q --allow-existing -p 3.12 tools/venv-fastsurfer
 VIRTUAL_ENV=tools/venv-fastsurfer uv pip install -q -r tools/FastSurfer/requirements.txt
 
 echo "== SimNIBS 4.6 (charm head segmentation)"
 # SimNIBS normally installs into conda; here we use its own wheels from GitHub instead.
-uv venv -q -p 3.11 tools/venv-simnibs
+uv venv -q --allow-existing -p 3.11 tools/venv-simnibs
 VIRTUAL_ENV=tools/venv-simnibs uv pip install -q \
   "https://github.com/oulap/samseg_wheels/releases/download/dev/samseg-0.5a0-cp311-cp311-macosx_14_0_arm64.whl" \
   "https://github.com/simnibs/cortech/releases/download/v0.1/cortech-0.1-cp311-cp311-macosx_11_0_arm64.whl" \
