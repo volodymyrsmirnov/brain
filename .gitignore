@@ -1,0 +1,8 @@
+# local environments and tools (recreated by pipeline/setup.sh)
+.venv/
+tools/
+# pipeline scratch space (recreated by pipeline/run_all.sh)
+work/
+__pycache__/
+.DS_Store
+.claude/

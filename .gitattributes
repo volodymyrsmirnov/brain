@@ -1,0 +1,4 @@
+# Large source and intermediate data live in Git LFS.
+data/raw/** filter=lfs diff=lfs merge=lfs -text
+data/derived/** filter=lfs diff=lfs merge=lfs -text
+# docs/ (the website) stays in plain git: GitHub Pages cannot serve LFS files.

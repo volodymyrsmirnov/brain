@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MRI Head Explorer</title>
+<meta name="description" content="Explore a real human head in 3D, reconstructed from an MRI scan: brain regions, skull, inner ear and veins.">
+<style>
+  :root {
+    --bg:#0b0c10; --panel:rgba(20,22,28,.92); --panel-solid:#15171d; --text:#e8eaf0; --muted:#9aa1ad;
+    --accent:#7aa2ff; --accent-2:#b48cff; --line:#2a2e38; --card:#1b1e26; --card-hover:#232734;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  button, select { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:7px;
+    padding:5px 9px; font:inherit; cursor:pointer; }
+  button:hover { background:var(--card-hover); }
+  button.on { border-color:var(--accent); color:var(--accent); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  a { color:var(--accent); }
+
+  /* ---------- panel ---------- */
+  #panel { position:fixed; top:12px; left:12px; width:310px; max-height:calc(100% - 24px); overflow:auto;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; backdrop-filter:blur(10px);
+    scrollbar-width:thin; z-index:3; }
+  #panel.hidden { display:none; }
+  .brand { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+  .brand h1 { font-size:16px; margin:0; font-weight:700; letter-spacing:.01em; }
+  .brand h1 span { background:linear-gradient(90deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .icon-btns { display:flex; gap:5px; }
+  .icon-btns button { padding:3px 8px; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:16px 0 7px; font-weight:650; }
+  .tours { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .tour { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px; border-radius:10px; text-align:center; font-size:11.5px; line-height:1.2; }
+  .tour .ico { font-size:19px; }
+  .tour.on { border-color:var(--accent); background:#1d2335; color:var(--text); }
+  .line { display:flex; gap:8px; align-items:center; margin:5px 0; }
+  .line > span.lbl { width:92px; flex:none; color:var(--muted); }
+  .seg { display:flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .seg button { border:0; border-radius:0; flex:1; }
+  .seg button.on { background:#1d2335; }
+  label.chk { display:flex; align-items:center; gap:7px; cursor:pointer; }
+  details { border-top:1px solid var(--line); padding:6px 0; }
+  summary { cursor:pointer; display:flex; align-items:center; gap:8px; list-style:none; font-weight:600; }
+  summary::-webkit-details-marker { display:none; }
+  summary .arrow { color:var(--muted); width:10px; transition:transform .15s; }
+  details[open] summary .arrow { transform:rotate(90deg); }
+  .row { display:flex; align-items:center; gap:8px; margin:3px 0 3px 18px; }
+  .row label, summary label { display:flex; align-items:center; gap:7px; cursor:pointer; flex:1; }
+  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; flex:none; }
+  .op { margin:2px 0 4px 18px; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; }
+  .foot { color:var(--muted); font-size:11px; margin-top:14px; }
+  #toggle { position:fixed; top:12px; left:12px; z-index:4; display:none; }
+
+  /* ---------- overlays ---------- */
+  #tip { position:fixed; pointer-events:none; background:rgba(10,11,14,.95); border:1px solid var(--line); border-radius:8px;
+    padding:6px 10px; font-size:12px; display:none; z-index:6; max-width:280px; }
+  #tip b { display:block; font-size:12.5px; }
+  #tip span { display:block; color:#c2c7d0; margin-top:2px; line-height:1.35; }
+  #ruler-label { position:fixed; pointer-events:none; background:var(--accent); color:#0b0d12; font-weight:700; border-radius:6px;
+    padding:2px 7px; display:none; transform:translate(-50%,-130%); z-index:5; }
+  #caption { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); width:min(560px, calc(100% - 32px));
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 40px 12px 16px; z-index:3;
+    backdrop-filter:blur(10px); display:none; }
+  #caption h3 { margin:0 0 3px; font-size:15px; }
+  #caption p { margin:0; color:#c9cdd6; }
+  #caption .meta { color:var(--muted); font-size:11px; margin-top:5px; }
+  #caption .x { position:absolute; top:8px; right:8px; border:0; background:transparent; color:var(--muted); font-size:16px; padding:2px 6px; }
+  .modal { position:fixed; inset:0; background:rgba(5,6,9,.72); display:none; align-items:center; justify-content:center; z-index:10; padding:16px; }
+  .modal.show { display:flex; }
+  .modal .box { background:var(--panel-solid); border:1px solid var(--line); border-radius:16px; max-width:620px; width:100%;
+    max-height:calc(100% - 32px); overflow:auto; padding:22px 24px; }
+  .modal h2 { font-size:20px; color:var(--text); text-transform:none; letter-spacing:0; margin:0 0 10px; }
+  .modal h4 { margin:16px 0 6px; font-size:13px; color:var(--accent); }
+  .modal p, .modal li { color:#c9cdd6; }
+  .modal ul { padding-left:18px; margin:6px 0; }
+  .modal .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  .modal .primary { background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:700; }
+  .kbd { display:inline-block; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:11px; color:var(--text); }
+  #loading { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+    background:var(--bg); z-index:20; color:var(--muted); }
+  #loading .bar { width:min(320px,70vw); height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
+  #loading .fill { height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .15s; }
+  #loading .title { color:var(--text); font-size:16px; font-weight:600; }
+
+  @media (min-width:701px) {
+    #caption { left:calc(50% + 167px); width:min(540px, calc(100% - 370px)); }
+  }
+  @media (max-width:700px) {
+    #panel { width:calc(100% - 24px); max-height:52%; top:auto; bottom:12px; }
+    #toggle { display:block; }
+    #caption { bottom:auto; top:56px; }
+    .tours { grid-template-columns:repeat(4,1fr); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="loading">
+  <div class="title">MRI Head Explorer</div>
+  <div class="bar"><div class="fill" id="load-fill"></div></div>
+  <div id="load-text">Loading 3D model…</div>
+</div>
+
+<div id="tip"></div>
+<div id="ruler-label"></div>
+<button id="toggle">☰ Menu</button>
+
+<div id="caption"><button class="x" id="cap-x" aria-label="Close">×</button><h3 id="cap-title"></h3><p id="cap-text"></p><div class="meta" id="cap-meta"></div></div>
+
+<div id="panel">
+  <div class="brand">
+    <h1><span>MRI</span> Head Explorer</h1>
+    <div class="icon-btns"><button id="help-btn" title="How to use">?</button><button id="about-btn" title="About this project">ⓘ</button></div>
+  </div>
+
+  <h2>Guided views</h2>
+  <div class="tours" id="tours"></div>
+
+  <h2>Volume rendering</h2>
+  <div class="line"><label class="chk"><input type="checkbox" id="on-vr" checked> Show raw MRI volume</label></div>
+  <div class="line"><span class="lbl">Style</span>
+    <div class="seg" style="flex:1"><button id="vr-solid" class="on">Solid</button><button id="vr-xray">X-ray</button></div></div>
+  <div class="line"><span class="lbl">Threshold</span><input type="range" id="vr-thr" min="0" max="100" value="8"></div>
+  <div class="line"><span class="lbl">Density</span><input type="range" id="vr-dens" min="1" max="100" value="45"></div>
+
+  <h2>Layers</h2>
+  <div id="layers"></div>
+
+  <h2>Tools</h2>
+  <div class="line"><span class="lbl">Split brain</span><input type="range" id="explode" min="0" max="60" value="0"></div>
+  <div class="line">
+    <select id="clip-axis" style="flex:1">
+      <option value="none">No cut</option>
+      <option value="x">Cut left / right</option>
+      <option value="y">Cut top / bottom</option>
+      <option value="z">Cut front / back</option>
+    </select><button id="clip-flip" title="Flip which half is removed">⇄</button>
+  </div>
+  <input type="range" id="clip-pos" min="-100" max="100" value="0" aria-label="Cut position">
+  <div class="btns" style="margin-top:7px">
+    <button id="ruler-btn" title="Click two points on a surface">📏 Ruler</button>
+    <button id="rotate-btn" title="Slowly spin the model">⟳ Auto-rotate</button>
+    <button id="ao-btn" class="on" title="Ambient occlusion: soft shadows in folds">◐ Shadows</button>
+  </div>
+
+  <h2>MRI slices</h2>
+  <div class="line"><label class="chk" style="width:92px"><input type="checkbox" id="on-ax"> Axial</label><input type="range" id="sl-ax" min="0" max="100" value="50"></div>
+  <div class="line"><label class="chk" style="width:92px"><input type="checkbox" id="on-sag"> Sagittal</label><input type="range" id="sl-sag" min="0" max="100" value="50"></div>
+  <div class="line"><label class="chk" style="width:92px"><input type="checkbox" id="on-cor"> Coronal</label><input type="range" id="sl-cor" min="0" max="100" value="50"></div>
+
+  <h2>Camera</h2>
+  <div class="btns">
+    <button data-view="front">Front</button><button data-view="left">Left</button><button data-view="right">Right</button>
+    <button data-view="top">Top</button><button data-view="back">Back</button><button data-view="bottom">Bottom</button>
+  </div>
+  <p class="foot">Not a medical tool. Built from one person's MRI, shared with their consent. <a href="#" id="about-link">How it was made</a></p>
+</div>
+
+<div class="modal" id="help">
+  <div class="box">
+    <h2>Welcome inside a real human head 🧠</h2>
+    <p>Everything you see was reconstructed from a single MRI scan of a real person: the skin, the skull, the brain with its folds,
+      the tiny inner ear and even the veins. Nothing here is a generic textbook model.</p>
+    <h4>Getting around</h4>
+    <ul>
+      <li><b>Rotate:</b> drag with the left mouse button (or one finger)</li>
+      <li><b>Move:</b> drag with the right mouse button (or two fingers)</li>
+      <li><b>Zoom:</b> mouse wheel or pinch</li>
+      <li><b>Learn:</b> hover over any part to see its name and what it does; click it to keep the description on screen</li>
+    </ul>
+    <h4>Start with the guided views</h4>
+    <p>The buttons at the top of the menu set up interesting scenes, like a see-through “glass head”, the brain split in half, or a virtual
+      cut through the middle. Then play with the sliders and checkboxes.</p>
+    <h4>Tools</h4>
+    <ul>
+      <li><b>Volume rendering</b> shows the raw scan as a 3D cloud. Move <i>Threshold</i> to peel away the faint layers.</li>
+      <li><b>Cut</b> slices the model open; <b>⇄</b> flips which half is removed.</li>
+      <li><b>Ruler</b>: click two points to measure in millimetres. <span class="kbd">Esc</span> clears it.</li>
+      <li><b>Split brain</b> pulls the two hemispheres apart.</li>
+    </ul>
+    <p style="color:var(--muted)">This is a visualization for curiosity and education, not a diagnosis. Automatic segmentation makes mistakes.</p>
+    <div class="actions"><button class="primary" data-close>Start exploring</button></div>
+  </div>
+</div>
+
+<div class="modal" id="about">
+  <div class="box">
+    <h2>How this was made</h2>
+    <p>A routine brain MRI (3&nbsp;Tesla Siemens Skyra, 23 series) was downloaded from a patient portal as DICOM, anonymized, and
+      processed with open-source research tools:</p>
+    <ul>
+      <li><b>Brain regions:</b> FastSurfer (deep-learning segmentation, DKT atlas) on the 0.5&nbsp;mm T1 scan</li>
+      <li><b>Skull &amp; eyes:</b> SimNIBS <i>charm</i> (atlas-based head segmentation) on T1 + T2</li>
+      <li><b>Skin:</b> thresholding of the T1 scan</li>
+      <li><b>Inner ear:</b> fluid in the 0.3&nbsp;mm T2 SPACE scan</li>
+      <li><b>Veins:</b> Frangi vesselness filter on the SWI scan</li>
+      <li><b>Surfaces:</b> marching cubes, smoothing and decimation, about 3 million triangles in total</li>
+    </ul>
+    <p>The viewer is a single HTML file using three.js. Source code, data and the full methodology are on GitHub.</p>
+    <h4>Honest limitations</h4>
+    <ul>
+      <li>Bone is dark on MRI, so the skull comes from an atlas-guided estimate, not a direct measurement.</li>
+      <li>Some vein fragments near the skull base are artefacts caused by air in the sinuses.</li>
+      <li>Automatic labels can be off by a few millimetres at region borders.</li>
+    </ul>
+    <div class="actions"><button class="primary" data-close>Close</button></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.6/build/index.module.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { computeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+const $ = id => document.getElementById(id);
+const DATA = 'data/';
+
+// ======================================================= plain-language info ==
+const LOBE_INFO = {
+  frontal: 'Planning, decisions, personality, speech production and voluntary movement.',
+  parietal: 'Touch, body awareness, sense of space, and combining information from the senses.',
+  temporal: 'Hearing, understanding language, recognising things, and (deeper inside) memory.',
+  occipital: 'Vision: images from your eyes are processed here, at the back of the head.',
+  cingulate: 'A belt of cortex wrapped around the middle of the brain: emotion, attention and noticing mistakes.',
+  insula: 'Hidden inside a deep fold, it senses the body from within: heartbeat, hunger, pain, disgust.',
+};
+const REGION_INFO = {
+  2: 'Monitors conflicts and errors, helping you notice when something is going wrong.',
+  3: 'Contains the frontal eye fields that steer your gaze; also supports working memory.',
+  5: 'Part of the primary visual area on the inner surface of the occipital lobe.',
+  6: 'The gateway between the hippocampus and the rest of the cortex; home of “grid cells” used for navigation.',
+  7: 'Specialised for recognising faces and written words.',
+  8: 'Language, arithmetic, and understanding other people’s actions.',
+  9: 'Recognising objects by sight.',
+  10: 'Links memory and spatial-navigation networks.',
+  11: 'Recognising shapes and objects.',
+  12: 'Weighs rewards and punishments, helping you change course when things go wrong.',
+  13: 'Vision, especially letters and colours; also visual memory and dreaming.',
+  14: 'Decision-making and value: how much you want something.',
+  15: 'Understanding the meaning of words; at its back end, perceiving motion.',
+  16: 'Recognising places and scenes; supports memory.',
+  17: 'Movement and touch for the legs and feet.',
+  18: 'Part of Broca’s area, which produces speech.',
+  19: 'Language: meaning and sentence processing.',
+  20: 'Part of Broca’s area: choosing words and building sentences.',
+  21: 'Primary visual cortex, the first stop in the cortex for signals from the eyes.',
+  22: 'Primary touch cortex: a map of your entire body surface, strip by strip.',
+  23: 'A hub of the “default mode network”, active when your mind wanders or you think about yourself.',
+  24: 'Primary motor cortex: a map that controls every voluntary muscle, from toes to tongue.',
+  25: 'Self-reflection, memories of personal events, and mental imagery.',
+  26: 'Regulating emotions and mood.',
+  27: 'The dorsolateral prefrontal cortex: working memory, planning and focus.',
+  28: 'Higher-level control, self-awareness and planning of movement.',
+  29: 'Knowing where your body is in space; guiding reaching and grasping.',
+  30: 'Hearing and understanding speech (Wernicke’s area sits at its back end).',
+  31: 'Language, empathy, and processing touch.',
+  34: 'Heschl’s gyrus: primary auditory cortex, where sound first arrives in the cortex.',
+  35: 'Hidden inside a deep fold, it senses the body from within: heartbeat, hunger, pain, disgust.',
+};
+const INFO = {
+  skin: 'The outer surface of the head, reconstructed directly from the MRI.',
+  skull: 'Bone is almost invisible on MRI (it shows up dark), so this skull was estimated by an atlas-based model using two MRI contrasts. The shape is right; fine details are approximate.',
+  eye: 'The eyeball. The fluid inside shows up clearly on MRI.',
+  wm: 'White matter: the brain’s wiring. Billions of nerve fibres connect regions; their fatty insulation makes it look white.',
+  ventricles: 'Fluid-filled cavities that produce and circulate cerebrospinal fluid, which cushions the brain.',
+  ventricle3: 'A narrow fluid-filled cavity in the midline, between the two thalami.',
+  ventricle4: 'A fluid-filled cavity between the brainstem and the cerebellum.',
+  thalamus: 'The brain’s relay station: almost every sensory signal passes through it on the way to the cortex.',
+  caudate: 'Part of the basal ganglia: learning, habits and goal-directed behaviour.',
+  putamen: 'Part of the basal ganglia: controls movement and learning motor skills.',
+  pallidum: 'Globus pallidus: the “brake and accelerator” for movement within the basal ganglia.',
+  hippocampus: 'Seahorse-shaped and essential for forming new memories and finding your way around.',
+  amygdala: 'Almond-shaped emotion centre: fear, threat detection and emotional memories.',
+  accumbens: 'The reward centre: pleasure, motivation and craving.',
+  ventraldc: 'Includes the hypothalamus, which controls hormones, hunger, thirst and body temperature.',
+  brainstem: 'Connects the brain to the spinal cord and runs automatic functions: breathing, heart rate, sleep.',
+  cerebellum: 'The “little brain”: coordinates movement, balance and timing. It holds more than half of all the brain’s neurons.',
+  cerebellum_wm: 'The white matter (wiring) inside the cerebellum.',
+  ear: 'The inner ear. The snail-shaped cochlea turns sound into nerve signals; the three looping semicircular canals sense head rotation for balance. The whole thing is about 1 cm across.',
+  veins: 'Veins draining blood from the brain, extracted from a scan that is sensitive to deoxygenated blood (SWI).',
+};
+function infoFor(L) {
+  if (L.group.startsWith('lobe_')) {
+    const code = +L.id.split('_')[2];
+    const lobe = L.group.slice(5);
+    return { text: REGION_INFO[code] ?? LOBE_INFO[lobe], meta: `${P.lobes[lobe]} · ${LOBE_INFO[lobe]}` };
+  }
+  const key = L.id.replace(/_[LR]$/, '');
+  return { text: INFO[key] ?? INFO[key.split('_')[0]] ?? '', meta: '' };
+}
+
+// ================================================================ loading ==
+async function inflate(buf) {
+  const u8 = new Uint8Array(buf);
+  if (u8[0] !== 0x1f || u8[1] !== 0x8b) return buf;           // server already decompressed it
+  const ds = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(ds).arrayBuffer();
+}
+const P = await (await fetch(DATA + 'manifest.json')).json();
+const totalBytes = P.layers.reduce((s, L) => s + L.bytes, 0) + 4e6;
+let loadedBytes = 0;
+const bump = n => {
+  loadedBytes += n;
+  const f = Math.min(1, loadedBytes / totalBytes);
+  $('load-fill').style.width = (f * 100).toFixed(1) + '%';
+  $('load-text').textContent = `Loading 3D model… ${(loadedBytes / 1e6).toFixed(0)} / ${(totalBytes / 1e6).toFixed(0)} MB`;
+};
+async function fetchBin(file) {
+  const r = await fetch(DATA + file);
+  if (!r.ok) throw new Error(`${file}: HTTP ${r.status}`);
+  const buf = await r.arrayBuffer(); bump(buf.byteLength);
+  return inflate(buf);
+}
+const [volBuf, ...meshBufs] = await Promise.all([fetchBin(P.volume.file), ...P.layers.map(L => fetchBin(L.file))]);
+
+// ================================================================== scene ==
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0c10);
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 5000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.autoRotateSpeed = 0.8;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3a48, 1.15));
+const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(0.5, 1, 1); camera.add(key);
+scene.add(camera);
+
+// Data are RAS mm. three.js: x = -R (patient's left appears on screen right when facing them), y = S, z = A.
+const world = new THREE.Group(); scene.add(world);
+const root = new THREE.Group(); root.matrixAutoUpdate = false;
+root.matrix.set(-1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,1);
+world.add(root);
+const clipPlane = new THREE.Plane(new THREE.Vector3(1,0,0), 0);
+let clipOn = false;
+
+// ================================================================= meshes ==
+const DEFAULT_OPACITY = { skin: 0.18, skull: 0.45 };
+let aoWanted = true, aoActive = false, vrBox = null;
+const items = [];
+P.layers.forEach((L, i) => {
+  const buf = meshBufs[i];
+  const q = new Int16Array(buf, 0, L.verts * 3);
+  const pos = new Float32Array(q.length); for (let k = 0; k < q.length; k++) pos[k] = q[k] * 0.01;
+  const idx = new Uint32Array(buf.slice(L.verts * 6));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeVertexNormals(); g.computeBoundsTree();
+  const mat = new THREE.MeshStandardMaterial({ color: L.color, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(g, mat);
+  mesh.renderOrder = L.group === 'head' ? 2 : 0;
+  root.add(mesh);
+  const it = { L, mesh, mat, base: DEFAULT_OPACITY[L.id] ?? 1, groupOpacity: 1, on: false };
+  mesh.userData.item = it;
+  items.push(it);
+});
+const byId = id => items.find(it => it.L.id === id);
+function applyItem(it) {
+  const op = it.base * it.groupOpacity;
+  it.mesh.visible = it.on && op > 0.001;
+  it.mat.opacity = op; it.mat.transparent = op < 1; it.mat.depthWrite = op >= 1;
+  it.mat.clippingPlanes = clipOn ? [clipPlane] : [];
+  it.mat.needsUpdate = true;
+  updateAO();
+}
+
+// =========================================================== layer panel ==
+const stripHemi = s => s.replace(/ \((L|R)\)$/, '');
+const GROUPS = [
+  { key: 'head', title: 'Head', match: L => L.group === 'head', by: L => L.id.replace(/_[LR]$/, '') },
+  { key: 'cortex', title: 'Cortex (by lobe)', match: L => L.group.startsWith('lobe_'), by: L => L.group, label: k => P.lobes[k.slice(5)] },
+  { key: 'deep', title: 'Deep structures', match: L => L.group === 'deep', by: L => L.id.replace(/_[LR]$/, '') },
+  { key: 'cerebellum', title: 'Cerebellum', match: L => L.group === 'cerebellum', by: L => L.id.replace(/_[LR]$/, '') },
+  { key: 'ear', title: 'Inner ear', match: L => L.group === 'ear', by: L => L.id },
+  { key: 'vessels', title: 'Veins', match: L => L.group === 'vessels', by: L => L.id },
+];
+const groupItems = {}, rowItems = [];
+const layersEl = $('layers');
+for (const G of GROUPS) {
+  const its = items.filter(it => G.match(it.L));
+  if (!its.length) continue;
+  groupItems[G.key] = its;
+  const det = document.createElement('details'); det.dataset.group = G.key;
+  const sum = document.createElement('summary');
+  sum.innerHTML = `<span class="arrow">▸</span><label><input type="checkbox"> ${G.title}</label>`;
+  det.appendChild(sum);
+  const gcb = sum.querySelector('input');
+  gcb.addEventListener('click', e => e.stopPropagation());
+  const op = document.createElement('div'); op.className = 'op';
+  op.innerHTML = `<span>opacity</span><input type="range" min="0" max="100" value="100">`;
+  det.appendChild(op);
+  op.querySelector('input').addEventListener('input', e => { for (const it of its) { it.groupOpacity = e.target.value / 100; applyItem(it); } });
+  const rows = new Map();
+  for (const it of its) { const k = G.by(it.L); if (!rows.has(k)) rows.set(k, []); rows.get(k).push(it); }
+  for (const [k, list] of rows) {
+    const r = document.createElement('div'); r.className = 'row';
+    const name = G.label ? G.label(k) : stripHemi(list[0].L.name);
+    r.innerHTML = `<label><input type="checkbox"><span class="sw" style="background:${list[0].L.color}"></span>${name}</label>`;
+    const cb = r.querySelector('input');
+    cb.addEventListener('change', () => { for (const it of list) { it.on = cb.checked; applyItem(it); } syncGroups(); });
+    rowItems.push({ list, cb });
+    det.appendChild(r);
+  }
+  gcb.addEventListener('change', () => {
+    for (const { list, cb } of rowItems) if (list.every(it => its.includes(it))) { cb.checked = gcb.checked; for (const it of list) { it.on = gcb.checked; applyItem(it); } }
+  });
+  layersEl.appendChild(det);
+}
+function syncGroups() {
+  for (const { list, cb } of rowItems) cb.checked = list.some(it => it.on);
+  for (const det of layersEl.children) det.querySelector('summary input').checked = [...det.querySelectorAll('.row input')].some(cb => cb.checked);
+}
+function setGroupOpacity(key, v) {
+  for (const it of groupItems[key] ?? []) { it.groupOpacity = v; applyItem(it); }
+  const el = layersEl.querySelector(`[data-group="${key}"] .op input`); if (el) el.value = Math.round(v * 100);
+}
+
+// ========================================================= centre + views ==
+root.updateMatrixWorld(true);
+const bb = new THREE.Box3().setFromObject((byId('skin') ?? items[0]).mesh);
+world.position.copy(bb.getCenter(new THREE.Vector3())).negate();
+const size0 = bb.getSize(new THREE.Vector3());
+const D = size0.length() * 1.9;
+const VIEWS = { front:[0,0,1], back:[0,0,-1], left:[1,0,0], right:[-1,0,0], top:[0,1,0.001], bottom:[0,-1,0.001], hero:[0.55,0.22,0.8] };
+
+let anim = null;
+function flyTo(pos, target = new THREE.Vector3(), ms = 900) {
+  anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), start: performance.now(), ms };
+}
+function viewDir(dir, dist = D, target = new THREE.Vector3()) {
+  const fit = Math.max(1, 0.8 / camera.aspect);   // back off on narrow (portrait) screens
+  flyTo(new THREE.Vector3(...dir).normalize().multiplyScalar(dist * fit).add(target), target);
+}
+function frame(pred, dir, zoom = 1) {
+  const box = new THREE.Box3();
+  items.filter(it => pred(it.L)).forEach(it => box.expandByObject(it.mesh));
+  const c = box.getCenter(new THREE.Vector3());
+  viewDir(dir, Math.max(box.getSize(new THREE.Vector3()).length() * 1.7 * zoom, 45), c);
+}
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => viewDir(VIEWS[b.dataset.view], D, controls.target.clone())));
+camera.position.set(...VIEWS.hero).multiplyScalar(D);
+
+// ================================================================ explode ==
+function setExplode(d) {
+  $('explode').value = d;
+  for (const it of items) {
+    const g = it.L.group;
+    if (!(g.startsWith('lobe_') || g === 'deep' || g === 'cerebellum')) continue;
+    it.mesh.position.x = it.L.hemi === 'R' ? d : it.L.hemi === 'L' ? -d : 0;   // RAS x
+  }
+}
+$('explode').addEventListener('input', e => setExplode(+e.target.value));
+
+// ================================================================= clip ==
+let flip = 1;
+function applyClip() {
+  const axis = $('clip-axis').value;
+  clipOn = axis !== 'none';
+  const v = $('clip-pos').value / 100;
+  const nrm = { x: [1,0,0], y: [0,1,0], z: [0,0,1] }[axis] ?? [1,0,0];
+  const ext = ({ x: size0.x, y: size0.y, z: size0.z }[axis] ?? size0.x) / 2;
+  clipPlane.normal.set(...nrm).multiplyScalar(-flip);
+  clipPlane.constant = flip * v * ext;
+  items.forEach(applyItem);
+  updateAO();
+}
+function autoFlip() {  // remove the half that faces the camera, so the cut face is visible
+  const k = { x: 0, y: 1, z: 2 }[$('clip-axis').value];
+  if (k !== undefined) flip = camera.position.getComponent(k) - controls.target.getComponent(k) >= 0 ? 1 : -1;
+}
+$('clip-axis').addEventListener('change', () => { autoFlip(); applyClip(); });
+$('clip-pos').addEventListener('input', applyClip);
+$('clip-flip').addEventListener('click', () => { flip *= -1; applyClip(); });
+
+// =================================================== MRI slices + volume ==
+const V = P.volume, [nx, ny, nz] = V.dims, o = V.origin;
+const vol = new Uint8Array(volBuf);                 // index = x + nx*(y + ny*z), RAS axes, 1 mm
+const at = (x,y,z) => vol[x + nx*(y + ny*z)];
+function sliceTex(axis, i) {
+  let w, h, get;
+  if (axis === 'ax')  { w = nx; h = ny; get = (u,v) => at(u, v, i); }
+  if (axis === 'cor') { w = nx; h = nz; get = (u,v) => at(u, i, v); }
+  if (axis === 'sag') { w = ny; h = nz; get = (u,v) => at(i, u, v); }
+  const d = new Uint8Array(w*h*4);
+  for (let v = 0; v < h; v++) for (let u = 0; u < w; u++) {
+    const g = get(u, v), q = 4*(u + w*v);
+    d[q] = d[q+1] = d[q+2] = g; d[q+3] = g < 8 ? 0 : 255;
+  }
+  const t = new THREE.DataTexture(d, w, h, THREE.RGBAFormat);
+  t.needsUpdate = true; t.magFilter = t.minFilter = THREE.LinearFilter;
+  return t;
+}
+const centreRAS = new THREE.Vector3(o[0] + (nx-1)/2, o[1] + (ny-1)/2, o[2] + (nz-1)/2);
+const slices = {};
+for (const axis of ['ax','cor','sag']) {
+  const geo = axis === 'ax' ? new THREE.PlaneGeometry(nx, ny) : axis === 'cor' ? new THREE.PlaneGeometry(nx, nz) : new THREE.PlaneGeometry(ny, nz);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, alphaTest: 0.03 }));
+  if (axis === 'cor') m.rotation.x = Math.PI/2;
+  if (axis === 'sag') m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1), new THREE.Vector3(1,0,0)));
+  m.visible = false; m.renderOrder = -1; root.add(m); slices[axis] = m;
+  const update = () => {
+    const frac = $('sl-' + axis).value / 100, n = { ax: nz, cor: ny, sag: nx }[axis];
+    const i = Math.min(n-1, Math.round(frac*(n-1)));
+    m.material.map?.dispose(); m.material.map = sliceTex(axis, i); m.material.needsUpdate = true;
+    m.position.copy(centreRAS);
+    if (axis === 'ax')  m.position.z = o[2] + i;
+    if (axis === 'cor') m.position.y = o[1] + i;
+    if (axis === 'sag') m.position.x = o[0] + i;
+  };
+  update();
+  $('sl-' + axis).addEventListener('input', update);
+  $('on-' + axis).addEventListener('change', e => { m.visible = e.target.checked; });
+}
+
+const tex3 = new THREE.Data3DTexture(vol, nx, ny, nz);
+tex3.format = THREE.RedFormat; tex3.type = THREE.UnsignedByteType;
+tex3.minFilter = tex3.magFilter = THREE.LinearFilter; tex3.unpackAlignment = 1; tex3.needsUpdate = true;
+const vrMat = new THREE.ShaderMaterial({
+  glslVersion: THREE.GLSL3, side: THREE.BackSide, transparent: true, depthWrite: false,
+  uniforms: { vol: { value: tex3 }, camLocal: { value: new THREE.Vector3() }, thr: { value: 0.08 }, dens: { value: 0.45 },
+              steps: { value: 384 }, mode: { value: 0 },
+              clipOn: { value: false }, clipLocal: { value: new THREE.Vector4() }, texel: { value: new THREE.Vector3(1/nx, 1/ny, 1/nz) } },
+  vertexShader: `out vec3 vPos; void main(){ vPos = position + 0.5; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `precision highp float; precision highp sampler3D;
+    uniform sampler3D vol; uniform vec3 camLocal, texel; uniform float thr, dens; uniform int steps, mode;
+    uniform bool clipOn; uniform vec4 clipLocal;
+    in vec3 vPos; out vec4 outColor;
+    vec2 hitBox(vec3 o, vec3 d){ vec3 t0=(vec3(0.)-o)/d, t1=(vec3(1.)-o)/d; vec3 a=min(t0,t1), b=max(t0,t1);
+      return vec2(max(max(a.x,a.y),a.z), min(min(b.x,b.y),b.z)); }
+    void main(){
+      vec3 o = camLocal + 0.5; vec3 d = normalize(vPos - o);
+      vec2 t = hitBox(o, d); t.x = max(t.x, 0.0); if (t.x >= t.y) discard;
+      float dt = 1.7320508 / float(steps); vec4 acc = vec4(0.); float sum = 0.;
+      bool wasClipped = false;
+      for (float s = t.x; s < t.y; s += dt) {
+        vec3 p = o + d*s;
+        if (clipOn && dot(clipLocal.xyz, p - 0.5) + clipLocal.w < 0.) { wasClipped = true; continue; }
+        float v = texture(vol, p).r;
+        // Cap: where the ray leaves the removed half, show the MRI section itself.
+        if (wasClipped && v > 0.03) { acc.rgb += (1.0 - acc.a) * vec3(min(v * 1.15, 1.0)); acc.a = 1.0; sum = 1e3; break; }
+        wasClipped = false;
+        if (v <= thr) continue;
+        if (mode == 1) { sum += (v - thr) * dt; continue; }      // X-ray: accumulate
+        float a = clamp((v - thr) / (1.0 - thr), 0., 1.) * dens * 0.25;
+        vec3 g = vec3(texture(vol, p + vec3(texel.x,0,0)).r - texture(vol, p - vec3(texel.x,0,0)).r,
+                      texture(vol, p + vec3(0,texel.y,0)).r - texture(vol, p - vec3(0,texel.y,0)).r,
+                      texture(vol, p + vec3(0,0,texel.z)).r - texture(vol, p - vec3(0,0,texel.z)).r);
+        float shade = length(g) > 1e-4 ? 0.3 + 0.8 * abs(dot(normalize(g), d)) : 1.0;
+        vec3 c = mix(vec3(0.55,0.42,0.38), vec3(1.0,0.93,0.86), smoothstep(thr, 1.0, v)) * shade;
+        acc.rgb += (1.0 - acc.a) * a * c; acc.a += (1.0 - acc.a) * a;
+        if (acc.a > 0.97) break;
+      }
+      if (mode == 1 && sum < 1e3) {
+        float x = 1.0 - exp(-sum * dens * 18.0);
+        acc = vec4(mix(vec3(0.35,0.55,1.0), vec3(1.0), x) * x, x);
+      }
+      if (acc.a < 0.01) discard; outColor = acc; }`,
+});
+vrBox = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), vrMat);
+vrBox.scale.set(nx, ny, nz); vrBox.position.copy(centreRAS); vrBox.renderOrder = 5;
+root.add(vrBox);
+function setVR({ on, mode, thr, dens } = {}) {
+  if (on !== undefined) { vrBox.visible = on; $('on-vr').checked = on; }
+  if (mode !== undefined) { vrMat.uniforms.mode.value = mode; $('vr-solid').classList.toggle('on', mode === 0); $('vr-xray').classList.toggle('on', mode === 1); }
+  if (thr !== undefined) { vrMat.uniforms.thr.value = thr; $('vr-thr').value = Math.round(thr * 100); }
+  if (dens !== undefined) { vrMat.uniforms.dens.value = dens; $('vr-dens').value = Math.round(dens * 100); }
+  updateAO();
+}
+$('on-vr').addEventListener('change', e => setVR({ on: e.target.checked }));
+$('vr-solid').addEventListener('click', () => setVR({ mode: 0 }));
+$('vr-xray').addEventListener('click', () => setVR({ mode: 1 }));
+$('vr-thr').addEventListener('input', e => setVR({ thr: e.target.value / 100 }));
+$('vr-dens').addEventListener('input', e => setVR({ dens: e.target.value / 100 }));
+
+// ===================================================== post-processing (AO) ==
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const gtao = new GTAOPass(scene, camera, 1, 1);
+gtao.updateGtaoMaterial({ radius: 6, distanceExponent: 1.5, thickness: 4, scale: 1.2 });
+composer.addPass(gtao);
+composer.addPass(new OutputPass());
+// AO darkens translucent layers into mud, so it only runs when everything visible is opaque.
+function updateAO() {
+  aoActive = aoWanted && !clipOn && !vrBox?.visible && !items.some(it => it.mesh.visible && it.mat.opacity < 1);
+}
+$('ao-btn').addEventListener('click', e => { aoWanted = !aoWanted; e.target.classList.toggle('on', aoWanted); updateAO(); });
+
+// ============================================================ auto-rotate ==
+function setRotate(on) { controls.autoRotate = on; $('rotate-btn').classList.toggle('on', on); }
+$('rotate-btn').addEventListener('click', () => setRotate(!controls.autoRotate));
+controls.addEventListener('start', () => { anim = null; setRotate(false); });
+
+// ================================================================ caption ==
+function caption(title, text, meta = '') {
+  if (!title) { $('caption').style.display = 'none'; return; }
+  $('cap-title').textContent = title; $('cap-text').textContent = text; $('cap-meta').textContent = meta;
+  $('caption').style.display = 'block';
+}
+$('cap-x').addEventListener('click', () => caption(null));
+
+// ===================================================== picking: hover/click ==
+const ray = new THREE.Raycaster(); ray.firstHitOnly = true;
+const mouse = new THREE.Vector2();
+const tip = $('tip');
+function pick(ev) {
+  const r = canvas.getBoundingClientRect();
+  mouse.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const vis = items.filter(it => it.mesh.visible && it.mat.opacity > 0.3).map(it => it.mesh);
+  let hits = ray.intersectObjects(vis, false);
+  if (clipOn) hits = hits.filter(h => clipPlane.distanceToPoint(h.point) >= 0);
+  return hits[0];
+}
+let rulerOn = false, pts = [], hoverPending = false;
+canvas.addEventListener('pointermove', ev => {
+  if (hoverPending || ev.buttons || rulerOn || ev.pointerType === 'touch') { tip.style.display = 'none'; return; }
+  hoverPending = true;
+  requestAnimationFrame(() => {
+    hoverPending = false;
+    const h = pick(ev);
+    if (h) {
+      const L = h.object.userData.item.L;
+      tip.replaceChildren();
+      const b = document.createElement('b'); b.textContent = L.name; tip.appendChild(b);
+      const txt = infoFor(L).text;
+      if (txt) { const sp = document.createElement('span'); sp.textContent = txt; tip.appendChild(sp); }
+      tip.style.display = 'block';
+      // keep the tooltip on screen
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = Math.min(ev.clientX + 14, innerWidth - tw - 8) + 'px';
+      tip.style.top = Math.min(ev.clientY + 12, innerHeight - th - 8) + 'px';
+      canvas.style.cursor = 'pointer';
+    } else { tip.style.display = 'none'; canvas.style.cursor = ''; }
+  });
+});
+canvas.addEventListener('pointerleave', () => tip.style.display = 'none');
+
+const rulerGroup = new THREE.Group(); scene.add(rulerGroup);
+const dotGeo = new THREE.SphereGeometry(2.2, 20, 14);
+const rulerMat = new THREE.MeshBasicMaterial({ color: 0x7aa2ff, depthTest: false });
+const rl = $('ruler-label');
+function clearRuler() { rulerGroup.clear(); pts = []; rl.style.display = 'none'; }
+$('ruler-btn').addEventListener('click', e => { rulerOn = !rulerOn; e.target.classList.toggle('on', rulerOn); if (!rulerOn) clearRuler(); });
+addEventListener('keydown', e => { if (e.key === 'Escape') { clearRuler(); caption(null); document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); } });
+let downAt = null;
+canvas.addEventListener('pointerdown', ev => downAt = [ev.clientX, ev.clientY]);
+canvas.addEventListener('pointerup', ev => {
+  if (!downAt || Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 5) return;
+  const h = pick(ev);
+  if (!rulerOn) {                                   // click = explain this structure
+    if (!h) return;
+    const L = h.object.userData.item.L, inf = infoFor(L);
+    caption(L.name, inf.text, inf.meta);
+    return;
+  }
+  if (!h) return;
+  if (pts.length === 2) clearRuler();
+  pts.push(h.point.clone());
+  const dot = new THREE.Mesh(dotGeo, rulerMat); dot.position.copy(h.point); dot.renderOrder = 10; rulerGroup.add(dot);
+  if (pts.length === 2) {
+    const len = pts[0].distanceTo(pts[1]);
+    const ln = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, len, 10), rulerMat);
+    ln.position.copy(pts[0]).add(pts[1]).multiplyScalar(0.5);
+    ln.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), pts[1].clone().sub(pts[0]).normalize());
+    ln.renderOrder = 10; rulerGroup.add(ln);
+    rl.textContent = len.toFixed(1) + ' mm'; rl.style.display = 'block';
+  }
+});
+function placeRulerLabel() {
+  if (pts.length !== 2) return;
+  const m = pts[0].clone().add(pts[1]).multiplyScalar(0.5).project(camera);
+  const r = canvas.getBoundingClientRect();
+  rl.style.left = (m.x * 0.5 + 0.5) * r.width + r.left + 'px';
+  rl.style.top = (-m.y * 0.5 + 0.5) * r.height + r.top + 'px';
+}
+
+// ========================================================== guided views ==
+const isCortex = L => L.group.startsWith('lobe_');
+const isBrain = L => isCortex(L) || (L.group === 'cerebellum' && !L.id.includes('wm')) || L.id === 'brainstem';
+const isDeep = L => L.group === 'deep' && !L.id.startsWith('wm');
+function scene_({ show = () => false, opacity = {}, groupOpacity = {}, vr = { on: false }, clip = 'none', clipPos = 0,
+                  explode = 0, slices: sl = [], rotate = false }) {
+  for (const k of Object.keys(groupItems)) setGroupOpacity(k, groupOpacity[k] ?? 1);
+  for (const it of items) { it.on = show(it.L); it.base = opacity[it.L.id] ?? DEFAULT_OPACITY[it.L.id] ?? 1; applyItem(it); }
+  syncGroups();
+  setVR({ on: false, mode: 0, thr: 0.08, dens: 0.45, ...vr });
+  setExplode(explode);
+  $('clip-axis').value = clip; $('clip-pos').value = clipPos;
+  for (const a of ['ax','cor','sag']) { const on = sl.includes(a); slices[a].visible = on; $('on-' + a).checked = on; }
+  setRotate(rotate);
+}
+const TOURS = [
+  { id: 'volume', ico: '☁️', name: 'MRI cloud', title: 'The raw scan, in 3D',
+    text: 'This is the MRI itself: millions of tiny measurements (voxels) shown as a glowing cloud. Drag “Threshold” in the menu to peel away faint layers and reveal what is underneath.',
+    run: () => { scene_({ vr: { on: true }, rotate: true }); viewDir(VIEWS.hero); } },
+  { id: 'xray', ico: '🩻', name: 'X-ray', title: 'X-ray vision',
+    text: 'The same data rendered like an X-ray: every point along your line of sight adds a little light, so dense, bright tissue glows through everything else.',
+    run: () => { scene_({ vr: { on: true, mode: 1, thr: 0.12, dens: 0.5 }, rotate: true }); viewDir(VIEWS.front); } },
+  { id: 'glass', ico: '🔮', name: 'Glass head', title: 'A see-through head',
+    text: 'The skin and skull made transparent, so you can see the brain sitting inside. The colours mark the brain’s lobes. Hover over anything to see its name.',
+    run: () => { scene_({ show: L => L.group === 'head' || isBrain(L) || L.group === 'ear', rotate: true }); viewDir(VIEWS.hero); } },
+  { id: 'skull', ico: '💀', name: 'Skull', title: 'The skull',
+    text: 'Bone is nearly invisible on MRI, so this skull was estimated by an atlas-based model (SimNIBS) from two different MRI contrasts. The overall shape is the real one.',
+    run: () => { scene_({ show: L => L.id === 'skull' || L.id.startsWith('eye_'), opacity: { skull: 1 }, rotate: true }); viewDir([0.5, 0.1, 0.85], D * 0.95); } },
+  { id: 'atlas', ico: '🗺️', name: 'Brain map', title: 'A map of the cortex',
+    text: 'The wrinkled outer layer, the cortex, divided into 62 regions, each with its own job. Click any region to read what it does.',
+    run: () => { scene_({ show: isBrain }); viewDir(VIEWS.left, D * 0.75); } },
+  { id: 'split', ico: '↔️', name: 'Split brain', title: 'Two hemispheres',
+    text: 'The left and right halves pulled apart. In a real brain they are joined by the corpus callosum, a bridge of about 200 million nerve fibres.',
+    run: () => { scene_({ show: L => isBrain(L) || isDeep(L), explode: 32 }); viewDir([0.15, 0.75, 1], D * 0.85); } },
+  { id: 'slice', ico: '🔪', name: 'Slice', title: 'A virtual cut',
+    text: 'The head sliced down the middle. The cut surface shows the actual MRI section: the brain, the corpus callosum, the brainstem, the tongue and the sinuses.',
+    run: () => { viewDir([1, 0.15, 0.25], D * 0.8); setTimeout(() => { scene_({ vr: { on: true, thr: 0.08, dens: 0.45 }, clip: 'x' }); autoFlip(); applyClip(); }, 950); } },
+  { id: 'deep', ico: '🌰', name: 'Deep inside', title: 'Hidden beneath the cortex',
+    text: 'Inside a glass brain: the fluid-filled ventricles (blue), the thalamus (the brain’s relay station) and the basal ganglia, which help control movement and habits.',
+    run: () => { scene_({ show: L => isCortex(L) || isDeep(L), groupOpacity: { cortex: 0.05 }, rotate: true }); frame(isDeep, [0.6, 0.55, 1], 1.4); } },
+  { id: 'memory', ico: '💭', name: 'Memory', title: 'Memory and emotion',
+    text: 'The hippocampus (yellow, curved like a seahorse) stores new memories; the amygdala (green, almond-shaped) gives them their emotional charge.',
+    run: () => { scene_({ show: L => isCortex(L) || /^(hippocampus|amygdala)/.test(L.id), groupOpacity: { cortex: 0.05 }, rotate: true });
+                 frame(L => /^(hippocampus|amygdala)/.test(L.id), [0.9, 0.5, 0.5], 2.6); } },
+  { id: 'ears', ico: '🐚', name: 'Inner ear', title: 'Hearing and balance',
+    text: 'Both inner ears, each about 1 cm across: the snail-shaped cochlea turns sound into nerve signals, and three looping canals sense head rotation to keep your balance.',
+    run: () => { scene_({ show: L => L.group === 'ear' }); frame(L => L.group === 'ear', [0, 1, 0.5], 1.05); } },
+  { id: 'veins', ico: '🩸', name: 'Veins', title: 'Veins of the brain',
+    text: 'Veins on the brain’s surface, found in a scan that is sensitive to oxygen-poor blood. The thick vessel along the midline is the superior sagittal sinus.',
+    run: () => { scene_({ show: L => L.group === 'vessels' || isCortex(L), groupOpacity: { cortex: 0.07 } }); viewDir([0.3, 1, 0.35], D * 0.8); } },
+  { id: 'free', ico: '🧭', name: 'Free mode', title: 'Your turn',
+    text: 'Everything is switched on. Use the checkboxes, sliders and tools in the menu to build your own view.',
+    run: () => { scene_({ show: L => !L.id.startsWith('wm_') && !L.id.startsWith('cerebellum_wm') && L.id !== 'veins' }); viewDir(VIEWS.hero); } },
+];
+const tourEl = $('tours');
+for (const T of TOURS) {
+  const b = document.createElement('button'); b.className = 'tour'; b.dataset.tour = T.id;
+  b.innerHTML = `<span class="ico">${T.ico}</span>${T.name}`;
+  b.addEventListener('click', () => startTour(T.id));
+  tourEl.appendChild(b);
+}
+function startTour(id) {
+  const T = TOURS.find(t => t.id === id);
+  document.querySelectorAll('.tour').forEach(b => b.classList.toggle('on', b.dataset.tour === id));
+  clearRuler();
+  T.run();
+  if (T.id !== 'slice') applyClip();
+  caption(T.title, T.text);
+  if (matchMedia('(max-width:700px)').matches) $('panel').classList.add('hidden');
+}
+
+// ================================================================ modals ==
+const openModal = id => $(id).classList.add('show');
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => {
+  if (e.target === m || e.target.hasAttribute('data-close')) m.classList.remove('show');
+}));
+$('help-btn').addEventListener('click', () => openModal('help'));
+$('about-btn').addEventListener('click', () => openModal('about'));
+$('about-link').addEventListener('click', e => { e.preventDefault(); openModal('about'); });
+$('toggle').addEventListener('click', () => { $('panel').classList.toggle('hidden'); resize(); });
+
+// ================================================================== loop ==
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); composer.setSize(w, h);
+  camera.aspect = w / h;
+  const panel = $('panel'), r = panel.getBoundingClientRect();
+  const shift = (w > 700 && !panel.classList.contains('hidden')) ? r.right / 2 : 0;  // centre in the free area
+  if (shift) camera.setViewOffset(w, h, -shift, 0, w, h); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+const inv = new THREE.Matrix4();
+const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+startTour('volume');
+camera.position.set(...VIEWS.hero).multiplyScalar(D * 1.6); anim.p0.copy(camera.position);
+$('loading').remove();
+let seen = false; try { seen = localStorage.getItem('mri-explorer-seen') === '1'; localStorage.setItem('mri-explorer-seen', '1'); } catch {}
+if (!seen) openModal('help');
+window.viewer = { scene, camera, controls, items, startTour };
+
+renderer.setAnimationLoop(() => {
+  if (anim) {
+    const t = Math.min(1, (performance.now() - anim.start) / anim.ms), k = ease(t);
+    camera.position.lerpVectors(anim.p0, anim.p1, k);
+    controls.target.lerpVectors(anim.t0, anim.t1, k);
+    if (t >= 1) anim = null;
+  }
+  controls.update();
+  if (vrBox.visible) {
+    inv.copy(vrBox.matrixWorld).invert();
+    vrMat.uniforms.camLocal.value.copy(camera.position).applyMatrix4(inv);
+    vrMat.uniforms.clipOn.value = clipOn;
+    if (clipOn) {
+      const lp = clipPlane.clone().applyMatrix4(inv);
+      vrMat.uniforms.clipLocal.value.set(lp.normal.x, lp.normal.y, lp.normal.z, lp.constant);
+    }
+  }
+  placeRulerLabel();
+  if (aoActive) composer.render(); else renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
