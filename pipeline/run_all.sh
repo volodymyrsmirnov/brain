@@ -68,6 +68,12 @@ if [ ! -f "$D/orbit_labels.nii.gz" ]; then
   $PY pipeline/seg_orbit.py "$D/t1.nii.gz" "$D/charm_tissues.nii.gz" "$D/aparc.DKTatlas+aseg.deep.mgz" "$D" --per-muscle
 fi
 
+step "4d/8 dental X-ray bent onto the jaw (only if data/raw/dental_panoramic.jpg exists)"
+if [ -f data/raw/dental_panoramic.jpg ] && [ ! -f "$D/dental_xray.npz" ]; then
+  # --chin-z: charm's jaw stops short of the real chin on this scan; -105 mm was read off the midline T1.
+  $PY pipeline/build_dental_xray.py data/raw/dental_panoramic.jpg "$D/skull_parts.nii.gz" "$D/dental_xray.npz" --chin-z -105
+fi
+
 step "5/8 inner ear (T2 SPACE, labyrinths found automatically)"
 if [ ! -f "$D/inner_ear_labels.nii.gz" ]; then
   $PY pipeline/seg_inner_ear.py "$W/nifti/$T2SPACE.nii.gz" "$W/ear" --aseg "$D/aparc.DKTatlas+aseg.deep.mgz"
