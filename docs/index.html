@@ -433,7 +433,7 @@ async function inflate(buf) {
   return await new Response(ds).arrayBuffer();
 }
 async function fetchOnce(file, onBytes) {         // fetch with streaming progress
-  const r = await fetch(DATA + file);
+  const r = await fetch(DATA + file + VERSION);
   if (!r.ok) throw new Error(`${file}: HTTP ${r.status}`);
   if (!r.body) { const b = await r.arrayBuffer(); onBytes(b.byteLength); return b; }
   const reader = r.body.getReader(), chunks = []; let n = 0;
@@ -447,7 +447,13 @@ async function fetchBuf(file, onBytes = () => {}) {   // retry flaky connections
     catch (e) { if (k >= 3) throw e; onBytes(-got); got = 0; await new Promise(r => setTimeout(r, 500 * 2 ** k)); }
   }
 }
-P = await (await fetch(DATA + 'manifest.json')).json();
+// The manifest is always revalidated; every data URL then carries a hash of it, so a browser can never mix a
+// cached old file (same name, different format) with a new manifest.
+const manifestText = await (await fetch(DATA + 'manifest.json', { cache: 'no-cache' })).text();
+let h = 2166136261;                                   // FNV-1a hash of the manifest
+for (let i = 0; i < manifestText.length; i++) { h ^= manifestText.charCodeAt(i); h = Math.imul(h, 16777619); }
+const VERSION = '?v=' + (h >>> 0).toString(36);
+P = JSON.parse(manifestText);
 const groupOf = L => P.groups.find(g => g.key === L.group);
 
 // 1) the volume first: it is the opening view

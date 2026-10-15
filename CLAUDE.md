@@ -215,6 +215,10 @@ scripts: `work/skull-orbit/render_labels.py` (any label map + LUT), `work/veins-
   plain-language text too.
 - Guided views (`TOURS`) double as story steps. A `when` hides a view if its data is missing; `story` overrides the
   text in the story; `inStory:false` keeps it out of the story. Space pauses, ←/→ steps, Esc exits.
+- **Caching:** GitHub Pages lets browsers cache files for 10 minutes. After v2 shipped, a browser combined a new
+  manifest with a cached v1 `volume.bin` (same name, different encoding), and the volume rendered as a smeared box.
+  So `manifest.json` is fetched with `cache: 'no-cache'`, and every data URL gets `?v=<FNV hash of the manifest>`.
+  Any data change also changes the manifest (byte sizes), so URLs change with it. Keep this when touching the loader.
 - Hidden browser tabs throttle `setTimeout` heavily; don't yield with `setTimeout(0)` in loading code.
 - `window.viewer` exposes scene, camera, controls, items, startTour, story controls, setInflate, setSurfColors,
   setExplode, meshesReady, infoFor, pick(x, y) for debugging and screenshots.
