@@ -212,6 +212,13 @@ scripts: `work/skull-orbit/render_labels.py` (any label map + LUT), `work/veins-
 - Surfaces: `type:"surface"` layers have a morph target (inflated, uint16 at 0.05 mm) driven by "Inflate brain", and
   per-vertex colours ("Regions" = DKT colours darkened in folds, "Folds" = sulc grey). Picking reports the DKT region of
   the nearest vertex.
+- Two brain sliders, combined in `placeItem()`:
+  - "Split brain" (`setExplode`) offsets groups with `explode: true` by hemisphere along RAS x.
+  - "Explode" (`setParts`, 0..1) moves the groups in `PART_GROUPS` along offsets precomputed once all meshes are loaded
+    (`computePartVecs`). Cortex regions get (lobe centre − brain centre) × LOBE_SPREAD + (region − lobe centre) ×
+    REGION_SPREAD; every other part gets (its centre − brain centre) × PART_SPREAD. Centres are geometry bounding-box
+    centres in RAS.
+  - Guided views reset both via `scene_({explode, parts})`. The "Explode" view animates `parts` 0 → 1.
 - Hover tooltip = name + one-line description from `infoFor()`: REGION_INFO by DKT code, LOBE_INFO, INFO by id prefix,
   then `NAME_INFO` regexes by name (first match wins, so order specific → generic). When adding layers, add a
   plain-language text too.

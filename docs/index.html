@@ -195,6 +195,8 @@
 
   <h2>Tools</h2>
   <div class="line"><span class="lbl">Split brain</span><input type="range" id="explode" min="0" max="60" value="0"></div>
+  <div class="line"><span class="lbl">Explode</span><input type="range" id="explode-parts" min="0" max="100" value="0"
+    title="Pull every brain part away from the centre"></div>
   <div id="surf-tools" hidden>
     <div class="line"><span class="lbl">Inflate brain</span><input type="range" id="inflate" min="0" max="100" value="0"></div>
     <div class="line"><span class="lbl">Colours</span>
@@ -490,7 +492,7 @@ let clipOn = false;
 
 // ================================================== layers (meshes arrive later) ==
 let aoWanted = true, aoActive = false, vrBox = null;
-let inflateT = 0, surfColors = 'regions', explodeD = 0;
+let inflateT = 0, surfColors = 'regions', explodeD = 0, partsK = 0;
 const items = P.layers.map(L => ({ L, mesh: null, mat: null, base: L.opacity ?? 1, groupOpacity: 1, on: false }));
 const byId = id => items.find(it => it.L.id === id);
 function applyItem(it) {
@@ -581,12 +583,47 @@ document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click'
 camera.position.set(...VIEWS.hero).multiplyScalar(D);
 
 // ======================================================= explode + inflate ==
+// "Split brain" moves the hemispheres apart along x (groups with explode: true). "Explode" pulls every brain part
+// away from the brain's centre: cortex regions move with their lobe (so lobes separate as units) plus a little on
+// their own (so the gyri inside a lobe separate too); every other brain part moves along its own direction.
+const PART_GROUPS = new Set(['surface', 'cortex', 'deep', 'cc', 'hypothalamus', 'cerebellum', 'cerebellum_lobules']);
+const LOBE_SPREAD = 0.9, REGION_SPREAD = 0.7, PART_SPREAD = 0.9;   // at full slider, in units of distance from centre
+let partVecs = null;                                  // item -> offset at full explode (RAS mm), computed once meshes exist
+function computePartVecs() {
+  const centre = it => { const g = it.mesh.geometry; if (!g.boundingBox) g.computeBoundingBox(); return g.boundingBox.getCenter(new THREE.Vector3()); };
+  const parts = items.filter(it => it.mesh && PART_GROUPS.has(it.L.group));
+  if (!parts.length) return;
+  const cortex = parts.filter(it => it.L.group === 'cortex');
+  const box = new THREE.Box3(); (cortex.length ? cortex : parts).forEach(it => box.expandByPoint(centre(it)));
+  const brainC = box.getCenter(new THREE.Vector3());
+  const lobeC = {};                                   // per lobe and hemisphere: mean centre of its regions
+  for (const it of cortex) {
+    const k = it.L.lobe + it.L.hemi; (lobeC[k] ??= { s: new THREE.Vector3(), n: 0 }).s.add(centre(it)); lobeC[k].n++;
+  }
+  partVecs = new Map();
+  for (const it of parts) {
+    const c = centre(it);
+    if (it.L.group === 'cortex' && lobeC[it.L.lobe + it.L.hemi]) {
+      const lc = lobeC[it.L.lobe + it.L.hemi].s.clone().divideScalar(lobeC[it.L.lobe + it.L.hemi].n);
+      partVecs.set(it, lc.clone().sub(brainC).multiplyScalar(LOBE_SPREAD).add(c.sub(lc).multiplyScalar(REGION_SPREAD)));
+    } else partVecs.set(it, c.sub(brainC).multiplyScalar(PART_SPREAD));
+  }
+}
 function placeItem(it) {
-  if (!it.mesh || !groupOf(it.L)?.explode) return;
-  it.mesh.position.x = it.L.hemi === 'R' ? explodeD : it.L.hemi === 'L' ? -explodeD : 0;   // RAS x
+  if (!it.mesh) return;
+  const split = groupOf(it.L)?.explode ? (it.L.hemi === 'R' ? explodeD : it.L.hemi === 'L' ? -explodeD : 0) : 0;   // RAS x
+  const v = partsK && partVecs?.get(it);
+  it.mesh.position.set(split, 0, 0);
+  if (v) it.mesh.position.addScaledVector(v, partsK);
 }
 function setExplode(d) { explodeD = d; $('explode').value = d; items.forEach(placeItem); }
+function setParts(k) {
+  partsK = k; $('explode-parts').value = Math.round(k * 100);
+  if (k && !partVecs && meshesDone) computePartVecs();
+  items.forEach(placeItem);
+}
 $('explode').addEventListener('input', e => setExplode(+e.target.value));
+$('explode-parts').addEventListener('input', e => setParts(e.target.value / 100));
 
 const surfItems = () => items.filter(it => it.L.type === 'surface');
 function setInflate(t) {
@@ -834,6 +871,7 @@ const meshesReady = (async () => {
   for (let k = 0; k < 6; k++) jobs.push(worker());
   await Promise.all(jobs);
   meshesDone = true; performance.mark('mri:meshes-ready');
+  computePartVecs(); if (partsK) items.forEach(placeItem);
   if (failed) { $('mesh-load-text').textContent = `${failed} part${failed > 1 ? 's' : ''} could not be loaded`; return; }
   $('mesh-load-text').textContent = '3D models ready';
   $('mesh-load').classList.add('done'); setTimeout(() => $('mesh-load').hidden = true, 600);
@@ -965,7 +1003,7 @@ function runTweens(now) {
   });
 }
 function scene_({ show = () => false, opacity = {}, groupOpacity = {}, vr = { on: false }, clip = 'none', clipPos = 0,
-                  explode = 0, slices: sl = [], rotate = false, inflate = 0, colors = 'regions' }) {
+                  explode = 0, parts = 0, slices: sl = [], rotate = false, inflate = 0, colors = 'regions' }) {
   for (const k of Object.keys(groupItems)) setGroupOpacity(k, groupOpacity[k] ?? 1);
   for (const it of items) {
     it.on = show(it.L);
@@ -974,7 +1012,7 @@ function scene_({ show = () => false, opacity = {}, groupOpacity = {}, vr = { on
   }
   syncGroups();
   setVR({ on: false, mode: 0, thr: 0.08, dens: 0.45, ...vr });
-  setExplode(explode); setInflate(inflate); if (surfColors !== colors) setSurfColors(colors);
+  setExplode(explode); setParts(parts); setInflate(inflate); if (surfColors !== colors) setSurfColors(colors);
   $('clip-axis').value = clip; $('clip-pos').value = clipPos;
   for (const a of ['ax','cor','sag']) { const on = sl.includes(a); slices[a].visible = on; $('on-' + a).checked = on; }
   setRotate(rotate);
@@ -1005,6 +1043,13 @@ const TOURS = [
   { id: 'atlas', ico: '🗺️', name: 'Brain map', title: 'A map of the cortex',
     text: 'The wrinkly outer layer, the cortex, carved into 62 regions, each with its own job. Click any region to see what it does.',
     run: () => { scene_({ show: isBrain }); viewDir(VIEWS.left, D * 0.75); } },
+  { id: 'parts', ico: '💥', name: 'Explode', title: 'Every part, pulled apart', extraMs: 2000,
+    text: 'My brain with every part pulled away from the centre. The lobes drift apart as whole pieces, the regions inside each lobe separate a little too, and the deep structures that are normally hidden show up in the middle. Use the “Explode” slider to do it yourself.',
+    run: () => { const lobules = has(inGroup('cerebellum_lobules'));
+                 scene_({ show: L => isCortex(L) || isDeep(L) || L.id === 'brainstem' || L.group === 'cc' || L.group === 'hypothalamus'
+                                     || (lobules ? L.group === 'cerebellum_lobules' : L.group === 'cerebellum' && !L.id.includes('wm')) });
+                 tween(3500, k => setParts(k), flightMs() + 300);
+                 viewDir([0.85, 0.3, 0.45], D * 0.72); } },
   { id: 'inflate', ico: '🎈', name: 'Unfold', title: 'Unfolding the cortex', when: () => has(isSurf), extraMs: 3000,
     text: 'The cortex is a sheet about 3 mm thick, crumpled up to fit inside the skull. Inflate it like a balloon to see the hidden folds (darker = deeper groove). Try the “Inflate brain” slider yourself.',
     run: () => { scene_({ show: isSurf, rotate: false }); viewDir(VIEWS.left, D * 0.8);
@@ -1170,7 +1215,7 @@ $('loading').remove();
 performance.mark('mri:first-view');
 let seen = false; try { seen = localStorage.getItem('mri-explorer-seen') === '1'; localStorage.setItem('mri-explorer-seen', '1'); } catch {}
 if (!seen) openModal('help');
-window.viewer = { THREE, scene, camera, controls, items, startTour, story, storyStart, storyGo, storyExit, setInflate, setSurfColors,
+window.viewer = { THREE, scene, camera, controls, items, startTour, story, storyStart, storyGo, storyExit, setInflate, setSurfColors, setParts,
                   setExplode, meshesReady, infoFor, pick: (x, y) => pick({ clientX: x, clientY: y }) };
 
 renderer.setAnimationLoop(() => {

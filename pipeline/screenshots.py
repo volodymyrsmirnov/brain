@@ -25,6 +25,7 @@ SHOTS = [
     ("skull", "skull", 1500, 1.0),
     ("eyes", "eyes", 1500, 1.0),
     ("brain-map", "atlas", 1500, 1.0),
+    ("explode", "parts", 5000, 1.0),
     ("inflated", "inflate", 7500, 1.0),
     ("split", "split", 1500, 0.8),
     ("deep", "deep", 1500, 1.0),

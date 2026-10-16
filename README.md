@@ -5,7 +5,7 @@
 In October 2026 I had a brain MRI. The clinic sent me a link to a web viewer with grey slices, but I wanted the actual data,
 so I pulled it out of the portal and turned it into something anyone can play with:
 - rotate my head and slice it open;
-- take my skull off and pull my brain's hemispheres apart;
+- take my skull off, pull my brain's hemispheres apart, or explode it into separate lobes and parts;
 - inflate my cortex like a balloon;
 - follow my optic nerves from the eyes to the brain;
 - find my tiny inner ears;
@@ -23,6 +23,8 @@ You don't need any medical background to explore it. Press **▶ Take the tour**
 | *The raw scan as a 3D cloud* | *Glass head* | *Skull, split into bones (atlas-based estimate)* |
 | ![Brain map](docs/img/brain-map.jpg) | ![Inflated cortex](docs/img/inflated.jpg) | ![Split brain](docs/img/split.jpg) |
 | *Cortex regions* | *The same cortex, inflated* | *Hemispheres apart, corpus callosum in the middle* |
+| ![Exploded brain](docs/img/explode.jpg) | | |
+| *Every part pulled apart ("Explode" slider)* | | |
 | ![Deep structures](docs/img/deep.jpg) | ![Hypothalamus area](docs/img/hypothalamus.jpg) | ![Cerebellum](docs/img/cerebellum.jpg) |
 | *Deep structures in a glass brain* | *Hypothalamus, pituitary, optic chiasm* | *Cerebellar lobules* |
 | ![Eyes and optic nerves](docs/img/eyes.jpg) | ![Inner ear](docs/img/inner-ear.jpg) | ![Veins](docs/img/veins.jpg) |
@@ -262,6 +264,10 @@ Plain HTML + [three.js](https://threejs.org), with no build step:
 - **Cuts:** cut planes clip both the meshes and the volume. Where a ray leaves the removed half it shows the MRI
   intensity, so the cut face looks like a real slice.
 - **Inflate brain:** the cortical surfaces morph between pial and inflated on the GPU (morph targets).
+- **Split and Explode:** "Split brain" moves the hemispheres apart. "Explode" pulls every brain part away from the
+  centre: cortex regions move with their lobe, so lobes separate as whole pieces, plus a little on their own, so the
+  gyri separate too. Deep structures, cerebellar lobules, the hypothalamus and the corpus callosum each move along
+  their own direction.
 - **Tour:** the guided views double as steps of a narrated "Take the tour" story with camera flights.
 - **Shading:** screen-space ambient occlusion (GTAO), switched off automatically for translucent scenes.
 
