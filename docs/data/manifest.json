@@ -2607,6 +2607,7 @@
    "hemi": "L",
    "color": "#d9c2bd",
    "type": "surface",
+   "sheetCm2": 1050,
    "attributes": {
     "position": 4,
     "morph": 1,
@@ -2615,9 +2616,9 @@
    },
    "morph": {
     "origin": [
-     -69.3369,
-     -99.4605,
-     -22.8904
+     -121.8861,
+     -154.5918,
+     -68.1321
     ],
     "step": 0.05
    },
@@ -2625,7 +2626,7 @@
    "file": "surf_L.drc",
    "verts": 150000,
    "faces": 299996,
-   "bytes": 596569,
+   "bytes": 637190,
    "bits": 12
   },
   {
@@ -2635,6 +2636,7 @@
    "hemi": "R",
    "color": "#d9c2bd",
    "type": "surface",
+   "sheetCm2": 1060,
    "attributes": {
     "position": 4,
     "morph": 1,
@@ -2644,8 +2646,8 @@
    "morph": {
     "origin": [
      6.2457,
-     -95.9033,
-     -20.7618
+     -150.9371,
+     -61.8468
     ],
     "step": 0.05
    },
@@ -2653,7 +2655,7 @@
    "file": "surf_R.drc",
    "verts": 150000,
    "faces": 299996,
-   "bytes": 598671,
+   "bytes": 639988,
    "bits": 12
   }
  ]

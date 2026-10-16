@@ -156,8 +156,12 @@ then `charm head_surf --surfaces`, ~14 min idle) gives TopoFit white/pial GIfTIs
 - TopoFit meshes are icosahedron subdivisions (finest 245,762 vertices), so white and pial correspond vertex for vertex.
 - Inflation: 3000 steps of "move halfway to the neighbour mean", area-rescaled every 5 steps; sulc = summed normal
   displacement (+ = sulcus, mean 0). curv = smoothed mean curvature of white (+ = concave).
-- The inflated surface is rescaled to the pial size and centre: a true area-preserving inflated brain is ~1.6× longer
-  and bursts out of the head during the morph. Area is therefore not preserved (sulc and shape are fine).
+- Inflated size:
+  - `build_surfaces.py` still writes the inflated surface shrunk to the pial size.
+  - `build_model.py` scales it back up about its centroid, so its area equals the mid-thickness sheet area
+    (~1050 cm² per hemisphere, ×1.8). It then pushes the hemispheres apart with a 10 mm gap.
+  - The owner wants the true size: unfolding should visibly grow the brain. Don't shrink it back.
+  - `sheetCm2` is written into the surface layers and shown in the Unfold caption.
 - DKT per vertex: 5 samples white→pial, nearest same-hemisphere cortical voxel within 2 mm, majority vote, 3-pass mode
   filter, islands < 60 vertices merged. 0 = medial wall (~3.4%), shown grey.
 - Decimation to 150k vertices/hemi: collapse groups computed once on the mid-thickness surface and applied to all three
