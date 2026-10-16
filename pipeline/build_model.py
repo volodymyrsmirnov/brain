@@ -103,8 +103,6 @@ GROUPS = [
          info="Hearing and balance organs, each about 1 cm across."),
     dict(key="vessels", title="Veins", visible=False, explode=False,
          info="Veins draining blood from the brain."),
-    dict(key="xray", title="Dental X-ray", visible=False, explode=False,
-         info="My panoramic dental X-ray, bent back onto the curve of the jaw."),
 ]
 
 # Generic label volumes: <stem>.nii.gz + <stem>.json -> one mesh per label. Skipped when absent.
@@ -409,23 +407,7 @@ def unique_ids(buf):
     return ids
 
 
-# ------------------------------------------------- dental X-ray (optional) --
-# data/derived/dental_xray.npz (pipeline/build_dental_xray.py): a ribbon along the jaw, world RAS + UVs into
-# data/raw/dental_panoramic.jpg. Shipped as a textured mesh; the image goes to docs/data/dental.jpg.
-xray_npz, xray_jpg = src / "dental_xray.npz", src.parent / "raw" / "dental_panoramic.jpg"
-xray_uv = None
-if xray_npz.exists() and xray_jpg.exists():
-    print("dental X-ray")
-    d = np.load(xray_npz)
-    m = trimesh.Trimesh(d["verts"] - C, d["faces"], process=False)    # keep vertex order: UVs are per vertex
-    xray_uv = d["uv"]
-    add("dental_xray", "xray", "Panoramic dental X-ray", "mid", "#ffffff", m, type="image")
-    from PIL import Image
-    im = Image.open(xray_jpg).convert("L")
-    im.thumbnail((2048, 2048))
-    im.save(out / "dental.jpg", quality=88)
-
-keep = {"manifest.json", "volume.bin"} | ({"dental.jpg"} if xray_uv is not None else set())
+keep = {"manifest.json", "volume.bin"}
 manifest_layers = []
 for L_ in layers:
     v = np.asarray(L_["mesh"].vertices, np.float64)
@@ -445,10 +427,6 @@ for L_ in layers:
         ids = unique_ids(buf) | {"morph": 1, "dkt": 2, "sulc": 3}
         entry |= {"attributes": ids, "morph": {"origin": lo.round(4).tolist(), "step": step},
                   "sulcScale": SULC_MM / 127}
-    elif L_["extra"].get("type") == "image":
-        uv16 = np.round(np.clip(xray_uv, 0, 1) * 65535).astype(np.uint16)
-        buf = DracoPy.encode(v, f, quantization_bits=bits, compression_level=7, generic_attributes={1: uv16})
-        entry |= {"attributes": unique_ids(buf) | {"uv": 1}, "image": "dental.jpg", "uvScale": 1 / 65535}
     else:
         buf = DracoPy.encode(v, f, quantization_bits=bits, compression_level=7)
     name = f"{L_['id']}.drc"
@@ -469,8 +447,7 @@ for old in list(out.glob("*.bin")) + list(out.glob("*.drc")):
 #   layers   [{id, group, name, hemi: L|R|mid, color, file, verts, faces, bytes, bits,
 #              optional: opacity, visible, row/rowName (panel row), lobe/code (DKT region), label (source label),
 #              type: "surface" + attributes {position, morph, dkt, sulc: Draco unique ids},
-#              morph {origin, step} (uint16 -> mm), sulcScale,
-#              type: "image" + attributes {position, uv}, image (texture file), uvScale (uint16 -> 0..1)}]
+#              morph {origin, step} (uint16 -> mm), sulcScale}]
 used = {L_["group"] for L_ in layers}
 skin = next((L_ for L_ in layers if L_["id"] == "skin"), layers[0])
 sv = np.asarray(skin["mesh"].vertices)

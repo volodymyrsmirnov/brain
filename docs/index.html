@@ -256,17 +256,6 @@
   </div>
 </div>
 
-<div class="modal" id="xray">
-  <div class="box" style="max-width:1100px">
-    <h2>My panoramic dental X-ray</h2>
-    <p>This is the original flat picture. The machine circles the head and records a curved band along the jaw, which is
-      why the whole jaw, both joints and the sinuses fit into one image. My name and the date were cropped off the bottom.
-      Not medical advice, just my teeth.</p>
-    <img id="xray-img" alt="Panoramic dental X-ray" style="width:100%;border-radius:8px;margin-top:6px;background:#000">
-    <div class="actions"><button class="primary" data-close>Close</button></div>
-  </div>
-</div>
-
 <div class="modal" id="about">
   <div class="box">
     <h2>How I made this</h2>
@@ -381,7 +370,6 @@ const INFO = {   // by layer id without _L/_R
   cerebellum: 'The “little brain”: coordinates movement, balance and timing. It packs more than half of all the brain’s neurons into about a tenth of its volume.',
   cerebellum_wm: 'The white matter (wiring) inside the cerebellum.',
   ear: 'The inner ear. The snail-shaped cochlea turns sound into nerve signals; the three looping semicircular canals sense head rotation for balance. The whole thing is about 1 cm across.',
-  dental_xray: 'My panoramic dental X-ray. The machine circles the head and flattens a curved band along the jaw into one picture; here it is bent back onto that curve. The fit is approximate, within a few millimetres.',
   veins: 'Veins draining blood from the brain, extracted from a scan that is sensitive to oxygen-poor blood (SWI). They empty into the dural sinuses.',
   sinuses: 'Dural sinuses: large channels between the layers of the brain’s tough outer membrane. They collect all the blood leaving the brain and drain it to the jugular veins in the neck. Their shape here is atlas-guided.',
 };
@@ -509,7 +497,7 @@ function applyItem(it) {
   if (!it.mesh) return;
   const op = it.base * it.groupOpacity;
   it.mesh.visible = it.on && op > 0.001;
-  it.mat.opacity = op; it.mat.transparent = op < 1 || it.L.type === 'image'; it.mat.depthWrite = op >= 1 && it.L.type !== 'image';
+  it.mat.opacity = op; it.mat.transparent = op < 1; it.mat.depthWrite = op >= 1;
   it.mat.clippingPlanes = clipOn ? [clipPlane] : [];
   it.mat.needsUpdate = true;
   updateAO();
@@ -774,7 +762,6 @@ draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/li
 draco.setDecoderConfig({ type: 'wasm' });
 const decode = (buf, ids, types) => new Promise((res, rej) => draco.decodeDracoFile(buf, res, ids, types, THREE.LinearSRGBColorSpace, rej));
 const SURF_TYPES = { position: 'Float32Array', morph: 'Uint16Array', dkt: 'Uint8Array', sulc: 'Uint8Array' };
-const IMG_TYPES = { position: 'Float32Array', uv: 'Uint16Array' };
 const C_UNKNOWN = new THREE.Color('#8b8580');
 function paintSurface(it) {
   const g = it.mesh.geometry, { dkt, sulc } = it.mesh.userData, col = g.getAttribute('color').array;
@@ -809,29 +796,6 @@ function buildMesh(it, g) {
     it.mesh.userData = { dkt, sulc, morphPos: mp };
     it.mesh.morphTargetInfluences[0] = inflateT;
     paintSurface(it);
-  } else if (L.type === 'image') {   // a picture bent onto a surface (the dental X-ray along the jaw)
-    const q = g.getAttribute('uv').array, uv = new Float32Array(q.length);
-    for (let i = 0; i < q.length; i++) uv[i] = q[i] * L.uvScale;
-    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    // Brightness becomes a soft opacity ramp, so the dark background of the X-ray disappears and bone and teeth stay.
-    // Only the side facing the camera is drawn (like looking at a bowl from outside), so near and far parts of the
-    // curved band never overlap and blend into mush.
-    const tex = new THREE.Texture(); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-    const im = new Image(); im.crossOrigin = 'anonymous';
-    im.onload = () => {
-      const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
-      const cx = cv.getContext('2d'); cx.drawImage(im, 0, 0);
-      const px = cx.getImageData(0, 0, cv.width, cv.height), d = px.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const t = Math.min(1, Math.max(0, (d[i] / 255 - 0.22) / 0.33));
-        d[i + 3] = 255 * t * t * (3 - 2 * t);           // smoothstep
-      }
-      cx.putImageData(px, 0, 0); tex.image = cv; tex.needsUpdate = true;
-    };
-    im.src = DATA + L.image + VERSION;
-    // BackSide = the outward side. Additive: X-ray light is only ever added, so it never darkens the skull behind it.
-    mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    it.mesh = new THREE.Mesh(g, mat);
   } else {
     g.computeVertexNormals();
     mat = new THREE.MeshStandardMaterial({ color: L.color, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
@@ -861,8 +825,7 @@ const meshesReady = (async () => {
     for (let it; (it = queue.shift());) {
       try {
         const buf = await fetchBuf(it.L.file, n => { fetched += n; progress(); });
-        const g = it.L.type === 'surface' ? await decode(buf, it.L.attributes, SURF_TYPES)
-                : it.L.type === 'image' ? await decode(buf, it.L.attributes, IMG_TYPES) : await decode(buf);
+        const g = it.L.type === 'surface' ? await decode(buf, it.L.attributes, SURF_TYPES) : await decode(buf);
         buildMesh(it, g);
       } catch (e) { console.error('layer', it.L.id, e); failed++; }   // one bad layer must not stop the rest
       built += it.L.bytes; progress();
@@ -1035,11 +998,6 @@ const TOURS = [
       ? 'Bone is nearly invisible on MRI, so my skull was estimated by an atlas-based model from two MRI contrasts. Hover to tell the braincase, face, jaw and neck bones apart.'
       : 'Bone is nearly invisible on MRI, so my skull was estimated by an atlas-based model from two MRI contrasts. The overall shape is the real one.',
     run: () => { scene_({ show: L => isSkull(L) || L.id.startsWith('eye_'), opacity: L => isSkull(L) ? 1 : undefined, rotate: true }); viewDir([0.5, 0.1, 0.85], D * 0.95); } },
-  { id: 'teeth', ico: '🦷', name: 'Teeth', title: 'Teeth, from a dental X-ray', when: () => has(L => L.type === 'image'),
-    text: 'MRI barely sees teeth, so here is my panoramic dental X-ray, bent back onto the curve of my jaw. The X-ray machine circles the head and flattens this band into one picture; the fit to the MRI is approximate. Turn on “Skull bones” in the menu to see it in place.',
-    meta: '<a href="#" data-xray>See the original flat X-ray</a>',
-    run: () => { scene_({ show: L => L.type === 'image', rotate: true });
-                 frame(L => L.type === 'image', [0.35, 0.05, 1], 0.85); } },
   { id: 'eyes', ico: '👁️', name: 'Eye to brain', title: 'From the eyes to the brain', when: () => has(L => L.group === 'eyes' || isOptic(L)),
     text: 'Behind each eyeball, the optic nerve carries what I see towards the brain. The two nerves meet at the optic chiasm, where half of the fibres cross to the other side. Small muscles around each eye move it.',
     run: () => { scene_({ show: L => L.id.startsWith('eye_') || L.group === 'eyes' || isOptic(L) || isCortex(L), groupOpacity: { cortex: 0.06 } });
@@ -1116,7 +1074,6 @@ async function startTour(id) {
   T.run();
   if (!T.keepClip) applyClip();
   caption(T.title, text);
-  if (T.meta) $('cap-meta').innerHTML = T.meta;     // static, trusted markup from TOURS
   if (matchMedia('(max-width:700px)').matches) $('panel').classList.add('hidden');
   return true;
 }
@@ -1190,12 +1147,6 @@ document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e =
 }));
 $('help-btn').addEventListener('click', () => openModal('help'));
 $('about-btn').addEventListener('click', () => openModal('about'));
-document.addEventListener('click', e => {
-  if (!e.target.closest('[data-xray]')) return;
-  e.preventDefault();
-  const img = $('xray-img'); if (!img.src) img.src = DATA + 'dental.jpg' + VERSION;
-  openModal('xray');
-});
 $('about-link').addEventListener('click', e => { e.preventDefault(); openModal('about'); });
 $('toggle').addEventListener('click', () => { $('panel').classList.toggle('hidden'); resize(); });
 
