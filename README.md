@@ -177,8 +177,10 @@ folded (pial) surface has a matching point on the inflated one.
   onto the cortex. The white (grey/white boundary) and pial (outer) surfaces come out hole-free and share one mesh,
   vertex for vertex. That's a second, T1-only charm run, and no FreeSurfer licence is needed.
 - **Inflation:** FreeSurfer-style. The white surface is smoothed 3000 times while its area is kept constant, and the
-  movement along the normal is summed into **sulcal depth** (dark = deep groove). For the viewer the inflated surface is
-  scaled back to the size of the brain, so it doesn't burst out of the head mid-morph.
+  movement along the normal is summed into **sulcal depth** (dark = deep groove). The inflated surface keeps the real
+  area of the cortical sheet, measured at mid-thickness between white and pial: about 2,110 cm² in total. So unfolding
+  makes each hemisphere about 1.8× bigger, from ~165 mm to ~275 mm long. That's the point of the slider: it shows how
+  much brain is hidden in the folds. The two hemispheres are pushed apart so they don't overlap.
 - **Regions:** each vertex samples the FastSurfer DKT labels at 5 points through the cortex and takes a majority vote.
   The medial wall (where the hemispheres touch) has no region and shows grey.
 - **Size:** decimated to 150k vertices per hemisphere with the same vertex groups on all surfaces, so the

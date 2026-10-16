@@ -252,8 +252,8 @@ def main():
 
         infl, sulc = inflate(white, f, A, inc, a.inflate_iter)
         # FreeSurfer keeps the white surface's total area, which makes the inflated brain ~1.6x longer
-        # than the real one. For a pial<->inflated morph in the head we rescale it to the pial's RMS
-        # radius and centre it on the pial centroid (shape and sulc are unaffected).
+        # than the real one. Here it is stored rescaled to the pial's RMS radius and centred on the pial
+        # centroid; build_model.py scales it back to the true cortical-sheet area for the web viewer.
         cp, ci = pial.mean(0), infl.mean(0)
         infl = cp + (infl - ci) * np.sqrt(((pial - cp) ** 2).sum(1).mean() / ((infl - ci) ** 2).sum(1).mean())
         curv = -smooth_values(mean_curvature(white, f, inc), A, 2)  # + = concave (FreeSurfer-like)

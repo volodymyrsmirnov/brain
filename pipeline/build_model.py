@@ -335,6 +335,10 @@ surfaces = []  # dicts: id, hemi, pial (N,3), faces, inflated (N,3), dkt (N,), s
 sdir = src / "surfaces"
 
 
+def tri_area(v, f):
+    return 0.5 * np.linalg.norm(np.cross(v[f[:, 1]] - v[f[:, 0]], v[f[:, 2]] - v[f[:, 0]]), axis=1).sum()
+
+
 def read_gii(path):
     g = nib.load(path)
     pts = next(d.data for d in g.darrays if d.intent == nib.nifti1.intent_codes["NIFTI_INTENT_POINTSET"])
@@ -347,13 +351,20 @@ if all((sdir / f"{h}.{k}").exists() for h in ("lh", "rh") for k in ("pial.gii", 
     for h, H in (("lh", "L"), ("rh", "R")):
         pial, faces = read_gii(sdir / f"{h}.pial.gii")
         infl, _ = read_gii(sdir / f"{h}.inflated.gii")
+        # True size: build_surfaces.py shrinks the inflated surface to the folded brain's size. Scale it back up so
+        # its area equals the cortical sheet's (mid-thickness between white and pial), which is what the brain
+        # would look like without folds. The "Inflate brain" slider then shows the real growth.
+        white = read_gii(sdir / f"{h}.white.gii")[0] if (sdir / f"{h}.white.gii").exists() else pial
+        sheet = tri_area(0.5 * (white + pial), faces)
+        ci, k = infl.mean(0), np.sqrt(sheet / tri_area(infl, faces))
+        infl = ci + (infl - ci) * k
         dkt = np.load(sdir / f"{h}.dkt.npy").astype(np.int64) % 1000
         sulc = np.load(sdir / f"{h}.sulc.npy") if (sdir / f"{h}.sulc.npy").exists() else np.zeros(len(pial))
         assert len(pial) == len(infl) == len(dkt) == len(sulc), h
         surfaces.append(dict(id=f"surf_{H}", hemi=H, pial=pial - C, faces=faces, inflated=infl - C,
-                             dkt=dkt, sulc=np.asarray(sulc, np.float64)))
-    # Inflated hemispheres (scaled to the pial size, centred on the pial centroid) nearly touch at the midline:
-    # push them apart along x so the morph opens a clear gap.
+                             dkt=dkt, sulc=np.asarray(sulc, np.float64), sheet_cm2=sheet / 100))
+        print(f"  {h}: cortical sheet {sheet / 100:.0f} cm2, inflated surface scaled x{k:.2f}")
+    # True-size inflated hemispheres overlap at the midline: push them apart along x so the morph opens a clear gap.
     xm = (surfaces[0]["pial"][:, 0].max() + surfaces[1]["pial"][:, 0].min()) / 2  # midline (L = -x in RAS)
     gap = 10.0
     for s in surfaces:
@@ -361,7 +372,8 @@ if all((sdir / f"{h}.{k}").exists() for h in ("lh", "rh") for k in ("pial.gii", 
         s["inflated"][:, 0] += (xm - gap / 2 - x.max()) if s["hemi"] == "L" else (xm + gap / 2 - x.min())
     for s in surfaces:
         m = trimesh.Trimesh(s["pial"], s["faces"], process=False)
-        add(s["id"], "surface", "Brain surface " + HEMI[s["hemi"]], s["hemi"], "#d9c2bd", m, type="surface")
+        add(s["id"], "surface", "Brain surface " + HEMI[s["hemi"]], s["hemi"], "#d9c2bd", m, type="surface",
+            sheetCm2=round(s["sheet_cm2"]))
         s["layer"] = layers[-1]
 else:
     print("no cortical surfaces (surfaces/{lh,rh}.{pial,inflated}.gii + .dkt.npy), skipping")
@@ -447,7 +459,7 @@ for old in list(out.glob("*.bin")) + list(out.glob("*.drc")):
 #   layers   [{id, group, name, hemi: L|R|mid, color, file, verts, faces, bytes, bits,
 #              optional: opacity, visible, row/rowName (panel row), lobe/code (DKT region), label (source label),
 #              type: "surface" + attributes {position, morph, dkt, sulc: Draco unique ids},
-#              morph {origin, step} (uint16 -> mm), sulcScale}]
+#              morph {origin, step} (uint16 -> mm), sulcScale, sheetCm2 (cortical sheet area, cm2)}]
 used = {L_["group"] for L_ in layers}
 skin = next((L_ for L_ in layers if L_["id"] == "skin"), layers[0])
 sv = np.asarray(skin["mesh"].vertices)

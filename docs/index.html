@@ -1051,8 +1051,13 @@ const TOURS = [
                  tween(3500, k => setParts(k), flightMs() + 300);
                  viewDir([0.85, 0.3, 0.45], D * 0.72); } },
   { id: 'inflate', ico: '🎈', name: 'Unfold', title: 'Unfolding the cortex', when: () => has(isSurf), extraMs: 3000,
-    text: 'The cortex is a sheet about 3 mm thick, crumpled up to fit inside the skull. Inflate it like a balloon to see the hidden folds (darker = deeper groove). Try the “Inflate brain” slider yourself.',
-    run: () => { scene_({ show: isSurf, rotate: false }); viewDir(VIEWS.left, D * 0.8);
+    text: (() => {
+      const cm2 = P.layers.filter(isSurf).reduce((s, L) => s + (L.sheetCm2 ?? 0), 0);
+      const area = cm2 ? ` Without its folds it keeps its real area, about ${Math.round(cm2 / 10) * 10} cm² (roughly ${(cm2 / 623.7).toFixed(1)} sheets of A4 paper), so the brain grows a lot.` : '';
+      return 'The cortex is a sheet about 3 mm thick, crumpled up to fit inside the skull.' + area
+        + ' Darker = deeper groove. Try the “Inflate brain” slider yourself.';
+    })(),
+    run: () => { scene_({ show: isSurf, rotate: false }); viewDir(VIEWS.left, D * 1.2);
                  tween(5000, k => setInflate(k), flightMs() + 600); } },
   { id: 'split', ico: '↔️', name: 'Split brain', title: 'Two hemispheres',
     text: has(inGroup('cc'))
