@@ -289,6 +289,14 @@
    "explode": false,
    "info": "Veins draining blood from the brain.",
    "order": 11
+  },
+  {
+   "key": "xray",
+   "title": "Dental X-ray",
+   "visible": false,
+   "explode": false,
+   "info": "My panoramic dental X-ray, bent back onto the curve of the jaw.",
+   "order": 12
   }
  ],
  "layers": [
@@ -2654,6 +2662,25 @@
    "verts": 150000,
    "faces": 299996,
    "bytes": 598671,
+   "bits": 12
+  },
+  {
+   "id": "dental_xray",
+   "group": "xray",
+   "name": "Panoramic dental X-ray",
+   "hemi": "mid",
+   "color": "#ffffff",
+   "type": "image",
+   "attributes": {
+    "position": 2,
+    "uv": 1
+   },
+   "image": "dental.jpg",
+   "uvScale": 1.5259021896696422e-05,
+   "file": "dental_xray.drc",
+   "verts": 11136,
+   "faces": 21714,
+   "bytes": 5190,
    "bits": 12
   }
  ]

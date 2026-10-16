@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Full pipeline: anonymized DICOM zip -> segmentations -> web model in docs/data.
 # Each step is skipped when its output already exists; delete work/ to start over.
-# Runtime on an M5 MacBook: a few hours, dominated by SimNIBS charm (twice) and HypVINN.
+# Runtime on an M5 MacBook: ~3 h from scratch (verified Oct 2026), dominated by SimNIBS charm (twice) and HypVINN.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
@@ -66,6 +66,12 @@ fi
 step "4c/8 optic nerves + eye muscles (T1)"
 if [ ! -f "$D/orbit_labels.nii.gz" ]; then
   $PY pipeline/seg_orbit.py "$D/t1.nii.gz" "$D/charm_tissues.nii.gz" "$D/aparc.DKTatlas+aseg.deep.mgz" "$D" --per-muscle
+fi
+
+step "4d/8 dental X-ray bent onto the jaw (only if data/raw/dental_panoramic.jpg exists)"
+if [ -f data/raw/dental_panoramic.jpg ] && [ ! -f "$D/dental_xray.npz" ]; then
+  # --chin-z: charm's jaw stops short of the real chin on this scan; -105 mm was read off the midline T1.
+  $PY pipeline/build_dental_xray.py data/raw/dental_panoramic.jpg "$D/skull_parts.nii.gz" "$D/dental_xray.npz" --chin-z -105
 fi
 
 step "5/8 inner ear (T2 SPACE, labyrinths found automatically)"

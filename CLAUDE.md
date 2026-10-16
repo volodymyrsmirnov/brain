@@ -131,6 +131,26 @@ sutures on MRI). C2–C7 numbering was tried and dropped (charm fuses arches). H
 T1 + the charm prior (bone/eye/air/brain forbidden); the optic canal = the path's closest approach to bone. Muscles =
 dark tissue (≤ min(Otsu, 0.58 × fat)) in a 27° cone, split by angle. Nerves reliable, per-muscle shapes approximate.
 
+**Dental X-ray** (`build_dental_xray.py`, run_all step 4d, only if `data/raw/dental_panoramic.jpg` exists): the
+panoramic X-ray (NewTom, Oct 2026) is a 2D image of a curved band along the jaw, so it is bent back onto a ribbon,
+not turned into a 3D model.
+- The burned-in name/date strip (bottom ~34 px) was cropped before committing. The "L" marker means patient's left =
+  image right.
+- The arch is the median radius of the lower jaw (skull_parts label 4) along rays from a point inside the arch, using
+  the bite-to-mid-chin height band.
+- Hand-picked image landmarks (`IMG` in the script): midline x 1010, bite y 600, chin bottom y 1048, ramus back
+  edges x 60 / 1940.
+- Vertical scale: bite → chin (0.096 mm/px). Horizontal: per side, midline → ramus (0.111 / 0.115 mm/px).
+- charm's jaw stops ~13 mm short of the real chin (marrow continues on the midline T1 to z ≈ −105), hence
+  `--chin-z -105`.
+- `build_model.py` ships it as `type:"image"`: Draco with a uint16 `uv` generic attribute plus `docs/data/dental.jpg`
+  (≤ 2048 px).
+- The viewer turns brightness into a smoothstep alpha (canvas pass) and draws only `BackSide`, which is the outward
+  side of this ribbon, so near and far parts of the U never overlap. It is blended additively: normal blending
+  let dark semi-transparent pixels darken the skull behind. A hard alphaTest looked grainy. The translucent skull adds haze, so the Teeth view shows the X-ray alone.
+  The "Teeth" guided view has a link to a modal with the flat image.
+- Don't describe findings in the X-ray anywhere: no medical claims.
+
 **Inner ear** (`seg_inner_ear.py`): automatic. A box 22–62 mm lateral of the brainstem centre (aseg 16); remove thick
 fluid; score bright 100–1500 mm³ pieces by the dark-bone fraction of their 0.5–1.5 mm shell. The internal auditory
 canal is cut as a 5 mm-radius cylinder along its PCA axis (3 and 4 mm left a stub/fin). `--roi-left/--roi-right`
@@ -226,6 +246,21 @@ scripts: `work/skull-orbit/render_labels.py` (any label map + LUT), `work/veins-
   `preview_start` with a launch config (the preview tool may look for `.claude/launch.json` in the session's original
   folder). Screenshots can lag one frame behind; use `zoom` or re-screenshot before concluding something isn't drawn.
   Headless Playwright was used for timing and story runs.
+
+## Reproducibility check
+
+`pipeline/compare_derived.py <ref_derived> <new_derived>` reports per-label Dice for label volumes and vertex
+distances for surfaces.
+
+To verify `run_all.sh` without touching the real data, make a clean copy: `work/verify/` with a copied `pipeline/`,
+symlinks to `data/raw/*.zip`, `tools/` and `.venv`, and an empty `data/derived`. Run `caffeinate -i -s bash
+pipeline/run_all.sh` there.
+
+Result (Oct 2026, 3 h):
+- FastSurfer + extras, inner ear and surfaces are bit-identical.
+- charm differs slightly (Dice 0.995): skull parts 0.993, veins 0.998, orbits 0.975 (right optic nerve 0.89, thin).
+
+Re-run this check after changing any pipeline step.
 
 ## Ideas not done yet
 

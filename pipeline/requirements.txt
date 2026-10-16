@@ -7,3 +7,4 @@ trimesh>=4.4
 fast-simplification>=0.1.9
 pydicom>=3.0
 DracoPy>=2.2         # Draco mesh compression for docs/data (generic attributes need 2.x)
+pillow>=10
