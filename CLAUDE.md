@@ -247,6 +247,21 @@ scripts: `work/skull-orbit/render_labels.py` (any label map + LUT), `work/veins-
   folder). Screenshots can lag one frame behind; use `zoom` or re-screenshot before concluding something isn't drawn.
   Headless Playwright was used for timing and story runs.
 
+## Reproducibility check
+
+`pipeline/compare_derived.py <ref_derived> <new_derived>` reports per-label Dice for label volumes and vertex
+distances for surfaces.
+
+To verify `run_all.sh` without touching the real data, make a clean copy: `work/verify/` with a copied `pipeline/`,
+symlinks to `data/raw/*.zip`, `tools/` and `.venv`, and an empty `data/derived`. Run `caffeinate -i -s bash
+pipeline/run_all.sh` there.
+
+Result (Oct 2026, 3 h):
+- FastSurfer + extras, inner ear and surfaces are bit-identical.
+- charm differs slightly (Dice 0.995): skull parts 0.993, veins 0.998, orbits 0.975 (right optic nerve 0.89, thin).
+
+Re-run this check after changing any pipeline step.
+
 ## Ideas not done yet
 
 - Real per-vertebra labels (C2–C7) and a hyoid would need a CT-like bone signal or a better bone model.

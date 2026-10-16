@@ -287,11 +287,20 @@ You need macOS on Apple Silicon (tested), Homebrew, Docker (OrbStack works), and
 ```bash
 git lfs install && git lfs pull      # fetch data/ (~0.5 GB)
 pipeline/setup.sh                    # tools: dcm2niix, FastSurfer, SimNIBS, SynthStrip
-pipeline/run_all.sh                  # a few hours; resumable, writes data/derived and docs/data
+pipeline/run_all.sh                  # ~3 hours; resumable, writes data/derived and docs/data
 ```
 
-Most of the time goes into SimNIBS charm (~1 h per run on an idle machine; it runs twice: head tissues, and the cortical
-surfaces) and HypVINN.
+Most of the time goes into SimNIBS charm (~1 h per run; it runs twice: head tissues, and the cortical surfaces) and
+HypVINN.
+
+**Is it reproducible?** I re-ran the whole pipeline from scratch in a clean copy (starting from the anonymized DICOM
+zip with an empty `data/derived`) and compared it with the committed results using
+[`compare_derived.py`](pipeline/compare_derived.py):
+- FastSurfer, HypVINN, CerebNet, FastSurfer-CC, the inner ears and the cortical surfaces came out **bit-identical**.
+- SimNIBS charm's atlas fitting isn't bit-exact between runs: head tissues Dice 0.995. The steps built on it are
+  close too: skull parts 0.993, veins 0.998, orbits 0.975. The worst single structure is the thin right optic nerve
+  (Dice 0.89).
+- The rebuilt web model has the same 167 layers. The full run took 3 hours on an M5 MacBook.
 
 To regenerate only the web model from the committed intermediate results (a few minutes, Python only):
 
