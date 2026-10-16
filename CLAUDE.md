@@ -119,6 +119,8 @@ Charm notes:
   The T2 TSE version stays. The skull mesh uses sigma 1.0 mm + 20 Taubin iterations.
 - Charm's atlas has optic nerves, chiasm and rectus muscles, but merges them into WM/muscle in the final labels.
   "Charm WM outside the FastSurfer brain" is a free prior for optic nerves, chiasm and spinal cord.
+- Charm's lower jaw stops ~13 mm short of the real bottom of the chin on this scan. The bone marrow continues on
+  the midline T1 down to z ≈ −105 mm, while charm stops at about −92.
 - Charm's eyeball (6) excludes the dark sclera (~1 mm too small); re-measure the globe radius from T1 before calling
   dark tissue next to the eye "muscle".
 
@@ -130,26 +132,6 @@ sutures on MRI). C2–C7 numbering was tried and dropped (charm fuses arches). H
 **Orbit** (`seg_orbit.py --per-muscle`): optic nerve = skimage MCP cheapest path from the eye to the chiasm through dark
 T1 + the charm prior (bone/eye/air/brain forbidden); the optic canal = the path's closest approach to bone. Muscles =
 dark tissue (≤ min(Otsu, 0.58 × fat)) in a 27° cone, split by angle. Nerves reliable, per-muscle shapes approximate.
-
-**Dental X-ray** (`build_dental_xray.py`, run_all step 4d, only if `data/raw/dental_panoramic.jpg` exists): the
-panoramic X-ray (NewTom, Oct 2026) is a 2D image of a curved band along the jaw, so it is bent back onto a ribbon,
-not turned into a 3D model.
-- The burned-in name/date strip (bottom ~34 px) was cropped before committing. The "L" marker means patient's left =
-  image right.
-- The arch is the median radius of the lower jaw (skull_parts label 4) along rays from a point inside the arch, using
-  the bite-to-mid-chin height band.
-- Hand-picked image landmarks (`IMG` in the script): midline x 1010, bite y 600, chin bottom y 1048, ramus back
-  edges x 60 / 1940.
-- Vertical scale: bite → chin (0.096 mm/px). Horizontal: per side, midline → ramus (0.111 / 0.115 mm/px).
-- charm's jaw stops ~13 mm short of the real chin (marrow continues on the midline T1 to z ≈ −105), hence
-  `--chin-z -105`.
-- `build_model.py` ships it as `type:"image"`: Draco with a uint16 `uv` generic attribute plus `docs/data/dental.jpg`
-  (≤ 2048 px).
-- The viewer turns brightness into a smoothstep alpha (canvas pass) and draws only `BackSide`, which is the outward
-  side of this ribbon, so near and far parts of the U never overlap. It is blended additively: normal blending
-  let dark semi-transparent pixels darken the skull behind. A hard alphaTest looked grainy. The translucent skull adds haze, so the Teeth view shows the X-ray alone.
-  The "Teeth" guided view has a link to a modal with the flat image.
-- Don't describe findings in the X-ray anywhere: no medical claims.
 
 **Inner ear** (`seg_inner_ear.py`): automatic. A box 22–62 mm lateral of the brainstem centre (aseg 16); remove thick
 fluid; score bright 100–1500 mm³ pieces by the dark-bone fraction of their 0.5–1.5 mm shell. The internal auditory
@@ -263,6 +245,10 @@ Result (Oct 2026, 3 h):
 Re-run this check after changing any pipeline step.
 
 ## Ideas not done yet
+
+Tried and removed: a panoramic dental X-ray bent onto a ribbon along the jaw (Oct 2026, commit ab5dd78, reverted).
+It worked technically, but a flat 2D picture looked out of place next to the MRI-derived 3D model, so the owner
+dropped it. Don't re-add it without asking. The code is in git history if needed.
 
 - Real per-vertebra labels (C2–C7) and a hyoid would need a CT-like bone signal or a better bone model.
 - A T2 for HypVINN (properly registered) could sharpen the hypothalamic subregion borders.

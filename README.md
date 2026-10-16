@@ -27,8 +27,8 @@ You don't need any medical background to explore it. Press **▶ Take the tour**
 | *Deep structures in a glass brain* | *Hypothalamus, pituitary, optic chiasm* | *Cerebellar lobules* |
 | ![Eyes and optic nerves](docs/img/eyes.jpg) | ![Inner ear](docs/img/inner-ear.jpg) | ![Veins](docs/img/veins.jpg) |
 | *Eyes, optic nerves, eye muscles* | *Right inner ear, about 1 cm* | *Veins and dural sinuses* |
-| ![Virtual cut](docs/img/slice.jpg) | ![Dental X-ray on the jaw](docs/img/teeth.jpg) | |
-| *Virtual cut with the real MRI section* | *My dental X-ray, bent onto the jaw* | |
+| ![Virtual cut](docs/img/slice.jpg) | | |
+| *Virtual cut with the real MRI section* | | |
 
 > **Not a medical tool.** It's a side project made out of curiosity. The algorithms are good but not perfect, and nothing
 > here says anything about my health. It's my head, and I'm happy to share it.
@@ -42,7 +42,6 @@ You don't need any medical background to explore it. Press **▶ Take the tour**
 | Raw volume | T1 MPRAGE | volume rendering in the browser (GLSL ray marching) | "Solid" and "X-ray" styles; cuts show the real MRI section |
 | Skin | T1 | threshold + morphology | yes, that's my face |
 | Skull, split into skull cap, skull base, face, lower jaw, C1, C2 and below | T1 + T2 TSE | SimNIBS **charm** + my own bone-part split | bone is dark on MRI, so this is an *estimate* |
-| Teeth (dental X-ray) | panoramic dental X-ray | the 2D image bent back onto the jaw's curve | fit within a few mm |
 | Eyes, optic nerves, eye muscles | T1 | charm eyeballs + cheapest-path nerve tracing + muscle cones | nerves are reliable, muscles approximate |
 | Cortex, 31 regions per hemisphere in 6 lobes | T1 | **FastSurfer** (DKT atlas) | |
 | Cortical surfaces (pial ↔ inflated) | T1 | charm surfaces + my own inflation | the "Inflate brain" slider |
@@ -77,7 +76,6 @@ docs/                       the website (GitHub Pages root)
   img/                      README screenshots and og.jpg (link preview), made by pipeline/screenshots.py
 data/                       ⚠ Git LFS
   raw/mri_study_anonymized.zip   the full study: 2,058 DICOM files, 23 series, headers cleaned
-  raw/dental_panoramic.jpg       a panoramic dental X-ray (name and date cropped off)
   derived/                  intermediate results, so you can skip the slow steps
     t1.nii.gz, brain_mask.nii.gz, aparc.DKTatlas+aseg.deep.mgz, charm_tissues.nii.gz
     hypothalamus_labels.*, cerebellum_lobules.*, corpus_callosum.*      (FastSurfer modules)
@@ -93,7 +91,6 @@ pipeline/
   seg_orbit.py              optic nerves and eye muscles
   seg_inner_ear.py          inner-ear labyrinths
   seg_veins.py              veins (SWI) + dural sinuses
-  build_dental_xray.py      bends the panoramic dental X-ray onto the jaw
   build_surfaces.py         cortical surfaces + inflation
   build_model.py            meshes + web data
   screenshots.py            README screenshots + link-preview image (needs Playwright)
@@ -214,18 +211,6 @@ nerve and muscles in it.
   the superior oblique.
 - The nerves are reliable; the individual muscle shapes are approximate.
 
-**Teeth** ([`build_dental_xray.py`](pipeline/build_dental_xray.py)): MRI barely sees teeth, but I also had a panoramic
-dental X-ray taken around the same time. That kind of X-ray has no depth: the machine circles the head and flattens a curved
-band along the jaw into one picture. So it can't become a 3D model of the teeth, but it can be bent back onto the curve
-it was taken along.
-- The curve is the middle line of the lower jaw seen from above (from the bone parts above).
-- Vertical scale: the bite line and the bottom of the chin, matched between the image and the MRI. charm's jaw stops
-  about 13 mm short of the real chin here, so the chin height was read off the midline T1.
-- Horizontal scale: the midline and the back edges of the jaw rami, per side (panoramic images are stretched
-  differently horizontally and vertically: 0.11 vs 0.096 mm per pixel here).
-- In the viewer, brightness doubles as opacity, so only bone and teeth glow. The fit is good to a few millimetres.
-  My name and the date were cropped off the bottom of the image.
-
 ### 8. Inner ear ([`seg_inner_ear.py`](pipeline/seg_inner_ear.py))
 
 On the 0.3 mm T2 SPACE scan the fluid-filled labyrinth is bright inside dark bone. The script finds both labyrinths on
@@ -319,9 +304,8 @@ steps were tuned on my scan, so check the results.
 ## Things that aren't perfect
 
 - **Skull:** an atlas-guided estimate from MRI, not a CT. The overall shape is right; thin bones and sutures are not.
+  The lower jaw also stops about 1 cm short of the real bottom of the chin.
   Some face/cranium and cap/base borders are straight cuts, and C2–C7 are one piece.
-- **Teeth:** the dental X-ray is a 2D picture bent onto the jaw, aligned by a few landmarks. Expect a few mm of
-  mismatch, more towards the joints. charm's lower jaw is also ~13 mm short at the chin.
 - **Eye muscles:** roughly in the right places, but the exact shapes are approximate.
 - **Veins:** a small cluster of artefacts remains near the sphenoid bone, and a few real veins at the frontal base are missing.
   The sinuses come from an atlas, so they're smooth and slightly thick.

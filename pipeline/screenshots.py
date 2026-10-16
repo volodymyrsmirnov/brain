@@ -23,7 +23,6 @@ SHOTS = [
     ("volume", "volume", 1500, 0.62),
     ("glass-head", "glass", 1500, 1.0),
     ("skull", "skull", 1500, 1.0),
-    ("teeth", "teeth", 1500, 1.0),
     ("eyes", "eyes", 1500, 1.0),
     ("brain-map", "atlas", 1500, 1.0),
     ("inflated", "inflate", 7500, 1.0),
