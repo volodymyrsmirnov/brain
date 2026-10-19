@@ -1,6 +1,6 @@
 # MRI Head Explorer
 
-> 📝 Blog post: [3D atlas of my brain made of my MRI scan](https://volodymyr.smirnov.im/writing/brain/)
+> 📝 Blog post: [3D atlas of my brain made of MRI scan](https://volodymyr.smirnov.im/writing/brain/)
 
 **My actual head in 3D, in your browser. Built from my brain MRI with free, open-source neuroscience tools.**
 
