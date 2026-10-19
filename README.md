@@ -1,5 +1,7 @@
 # MRI Head Explorer
 
+> 📝 Blog post: [3D atlas of my brain made of my MRI scan](https://volodymyr.smirnov.im/writing/brain/)
+
 **My actual head in 3D, in your browser. Built from my brain MRI with free, open-source neuroscience tools.**
 
 In October 2026 I had a brain MRI. The clinic sent me a link to a web viewer with grey slices, but I wanted the actual data,
